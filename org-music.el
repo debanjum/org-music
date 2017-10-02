@@ -49,22 +49,35 @@
   (interactive)
   (let* ((proc-name "*mpsyt")
          (proc (cond ((get-process proc-name))
-		     ((start-mpsyt proc-name)))))
+		     ((start-mpsyt)))))
     (process-send-string proc-name command)))
+
+(define-minor-mode mpsyt-mode
+  "Interact with mpsyt through emacs"
+  :lighter " Mpsyt"
+  :keymap (let ((map (make-sparse-keymap)))
+	    (define-key map (kbd "C-c m s") 'search-youtube)
+	    (define-key map (kbd "<SPC>") '(lambda () "play/pause" (interactive) (mpsyt-execute (kbd "SPC"))))
+	    (define-key map (kbd "q") 'delete-window)
+	    (define-key map (kbd "<") '(lambda () "play next track in playlist" (interactive) (mpsyt-execute (kbd "<"))))
+	    (define-key map (kbd ">") '(lambda () "play previous track in playlist" (interactive) (mpsyt-execute (kbd ">"))))
+	    (define-key map (kbd "0") '(lambda () "increase volume" (interactive) (mpsyt-execute (kbd "0"))))
+	    (define-key map (kbd "9") '(lambda () "decrease volume" (interactive) (mpsyt-execute (kbd "9"))))
+            map))
 
 (define-minor-mode org-music-mode
   "Play music from org"
-  :lighter "org-music"
+  :lighter " Org-music"
   :keymap (let ((map (make-sparse-keymap)))
+	    (define-key map (kbd "C-c m m") 'open-mpsyt-buffer)
 	    (define-key map (kbd "C-c m a") 'play-list)
 	    (define-key map (kbd "C-c m e") 'enqueue-list)
 	    (define-key map (kbd "C-c m s") 'search-youtube)
-	    (define-key map (kbd "C-c m <SPC>") '(lambda () "play/pause" (interactive) (process-send-string "*mpsyt" (kbd "SPC"))))
-	    (define-key map (kbd "C-c m m") '(lambda () "open status buffer" (interactive) (switch-to-buffer "*mpsyt*")))
-	    (define-key map (kbd "C-c m p") '(lambda () "play next track in playlist" (interactive) (process-send-string "*mpsyt" (kbd "<"))))
-	    (define-key map (kbd "C-c m n") '(lambda () "play previous track in playlist" (interactive) (process-send-string "*mpsyt" (kbd ">"))))
-	    (define-key map (kbd "C-c m 0") '(lambda () "increase volume" (interactive) (process-send-string "*mpsyt" (kbd "0"))))
-	    (define-key map (kbd "C-c m 9") '(lambda () "decrease volume" (interactive) (process-send-string "*mpsyt" (kbd "9"))))
+	    (define-key map (kbd "C-c m <SPC>") '(lambda () "play/pause" (interactive) (mpsyt-execute (kbd "SPC"))))
+	    (define-key map (kbd "C-c m p") '(lambda () "play next track in playlist" (interactive) (mpsyt-execute (kbd "<"))))
+	    (define-key map (kbd "C-c m n") '(lambda () "play previous track in playlist" (interactive) (mpsyt-execute (kbd ">"))))
+	    (define-key map (kbd "C-c m 0") '(lambda () "increase volume" (interactive) (mpsyt-execute (kbd "0"))))
+	    (define-key map (kbd "C-c m 9") '(lambda () "decrease volume" (interactive) (mpsyt-execute (kbd "9"))))
             map)
 
   ;; define music speed commands
