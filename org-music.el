@@ -26,40 +26,6 @@
       (get-org-headings-from-region)
     (flatten (nth 4 (org-heading-components)))))
 
-(defun mpsyt-playing? ()
-  "returns t if playing anything currently else nil"
-  (with-temp-buffer
-    (progn
-      (insert-buffer-substring "*mpsyt*")
-      (end-of-buffer)
-      (previous-line)
-      (let* ((sline (buffer-substring-no-properties (line-beginning-position) (line-end-position)))
-	     (result (equal 0 (length sline))))
-	(not result)))))
-
-(defun enqueue-list ()
-  "enqueue songs in active-region/sparse-tree/buffer"
-  (interactive)
-  (if (mpsyt-playing?)
-      (mpsyt-execute "q"))
-  (let ((command
-	 (format "%s\nvp\nall\n"
-		 (seq-reduce
-		  #'(lambda (a b) (concatenate 'string a (format "/%s\nadd 1\n" b)))
-		  (get-org-headings) ""))))
-    (message "%s" command)
-    (mpsyt-execute command)))
-
-(defun play-list ()
-  "play songs in active-region/sparse-tree/buffer"
-  (interactive)
-  (if (get-process "*mpsyt")
-      (delete-process "*mpsyt*"))
-  (mpsyt-execute
-   (format "\nvp\nrm all\n%svp\nall\n"
-	   (seq-reduce
-	    #'(lambda (a b) (concatenate 'string a (format "/%s\nadd 1\n" b)))
-	    (get-org-headings) ""))))
 
 (defun start-mpsyt ()
   (let ((proc (start-process "*mpsyt" "*mpsyt*" "mpsyt")))
@@ -79,6 +45,51 @@
 		     ((start-mpsyt)))))
     (process-send-string proc-name command)))
 
+(defun mpsyt-playing? ()
+  "returns t if playing anything currently else nil"
+  (if (get-process "*mpsyt")
+      (with-temp-buffer
+	(progn
+	  (insert-buffer-substring "*mpsyt*")
+	  (end-of-buffer)
+	  (previous-line)
+	  (let* ((sline (buffer-substring-no-properties (line-beginning-position) (line-end-position)))
+		 (result (equal 0 (length sline))))
+	    (not result))))))
+
+(defun enqueue-list ()
+  "enqueue songs in active-region/sparse-tree/buffer"
+  (interactive)
+  (if (mpsyt-playing?)
+      (mpsyt-execute "q"))
+  (let ((command
+	 (format "%s\nvp\nall\n"
+		 (seq-reduce
+		  #'(lambda (a b) (concatenate 'string a (format "/%s\nadd 1\n" b)))
+		  (get-org-headings) ""))))
+    (message "%s" command)
+    (mpsyt-execute command)))
+
+
+(defun clear-playlist ()
+  "clear songs in mpsyt playlist"
+  (interactive)
+  (if (mpsyt-playing?)
+      (delete-process "*mpsyt*"))
+  (let ((command (format "vp\nrm 1-\n")))
+    (mpsyt-execute command)))
+
+(defun play-list ()
+  "play songs in active-region/sparse-tree/buffer"
+  (interactive)
+  (if (get-process "*mpsyt")
+      (delete-process "*mpsyt*"))
+  (mpsyt-execute
+   (format "\nvp\nrm 1-\n%svp\nall\n"
+	   (seq-reduce
+	    #'(lambda (a b) (concatenate 'string a (format "/%s\nadd 1\n" b)))
+	    (get-org-headings) ""))))
+
 (defun play-from-song-at-point ()
   (interactive)
   (let ((proc-name "*mpsyt")
@@ -88,19 +99,18 @@
     (setq pline (buffer-substring-no-properties (line-beginning-position) (line-end-position)))
     (mpsyt-execute (format "%s-\n" (car (split-string pline))))))
 
-(defun search-youtube (search-term)
-  "search songs in youtube"
-  (interactive "sEnter search term: ")
-  (message "\n/%s\n" search-term)
-  (mpsyt-execute (format "\n/%s\n" search-term))
-  (switch-to-buffer "*mpsyt*"))
-
 (defun open-mpsyt-buffer ()
   (interactive)
   (cond ((get-process "*mpsyt"))
 	((start-mpsyt)))
   (switch-to-buffer-other-window "*mpsyt*"))
 
+(defun search-youtube (search-term)
+  "search songs in youtube"
+  (interactive "sEnter search term: ")
+  (message "\n/%s\n" search-term)
+  (mpsyt-execute (format "\n/%s\n" search-term))
+  (switch-to-buffer "*mpsyt*"))
 
 (define-minor-mode mpsyt-mode
   "Interact with mpsyt through emacs"
