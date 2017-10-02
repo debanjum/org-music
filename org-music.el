@@ -1,34 +1,92 @@
 (require 'shell)
-
-(defun get-org-headings-from-region ()
-  "extract song headings from active/narrowed/buffer org"
-  (narrow-to-region (point) (mark))
-  (setq headings (org-element-map (org-element-parse-buffer) 'headline
-     	      (lambda (hs) (when (equal "song" (org-element-property :TYPE hs))
-     			     (org-element-property :title hs)))))
-  (widen)
-  headings)
+(require 'org)
 
 (defun flatten (l)
   (cond ((null l) nil)
    ((atom l) (list l))
    (t (loop for a in l appending (flatten a)))))
 
+(defun get-org-headings-from-region ()
+  "extract song headings from active/narrowed/buffer org"
+  (narrow-to-region (point) (mark))
+  (setq headings (org-element-map (org-element-parse-buffer) 'headline
+		   (lambda (hs) (when (equal "song" (org-element-property :TYPE hs))
+				  (org-element-property :title hs)))))
+  (widen)
+  (flatten headings))
+
+(defun get-org-heading-at-point ()
+  "Open media at point"
+  (let ((song-name (format "%s" (nth 4 (org-heading-components)))))
+    (message "Streaming: %s" song-name)
+    (mpsyt-execute (format "\n/%s\nadd 1\nvp\nall\n" song-name))))
+
+(defun get-org-headings ()
+  (if (use-region-p)
+      (get-org-headings-from-region)
+    (flatten (nth 4 (org-heading-components)))))
+
+(defun mpsyt-playing? ()
+  "returns t if playing anything currently else nil"
+  (with-temp-buffer
+    (progn
+      (insert-buffer-substring "*mpsyt*")
+      (end-of-buffer)
+      (previous-line)
+      (let* ((sline (buffer-substring-no-properties (line-beginning-position) (line-end-position)))
+	     (result (equal 0 (length sline))))
+	(not result)))))
+
 (defun enqueue-list ()
   "enqueue songs in active-region/sparse-tree/buffer"
   (interactive)
-  (mpsyt-execute
-   (format "\n/%s\nvp\nall\n"
-      (reduce #'(lambda (a b) (concatenate 'string a (format "\nadd 1\n/%s" b)))
-     	      (flatten (get-org-headings-from-region))))))
+  (if (mpsyt-playing?)
+      (mpsyt-execute "q"))
+  (let ((command
+	 (format "%s\nvp\nall\n"
+		 (seq-reduce
+		  #'(lambda (a b) (concatenate 'string a (format "/%s\nadd 1\n" b)))
+		  (get-org-headings) ""))))
+    (message "%s" command)
+    (mpsyt-execute command)))
 
 (defun play-list ()
   "play songs in active-region/sparse-tree/buffer"
   (interactive)
+  (if (get-process "*mpsyt")
+      (delete-process "*mpsyt*"))
   (mpsyt-execute
-   (format "\nvp\nrm all\n/%s\nvp\nall\n"
-      (reduce #'(lambda (a b) (concatenate 'string a (format "\nadd 1\n/%s" b)))
-     	      (flatten (get-org-headings-from-region))))))
+   (format "\nvp\nrm all\n%svp\nall\n"
+	   (seq-reduce
+	    #'(lambda (a b) (concatenate 'string a (format "/%s\nadd 1\n" b)))
+	    (get-org-headings) ""))))
+
+(defun start-mpsyt ()
+  (let ((proc (start-process "*mpsyt" "*mpsyt*" "mpsyt")))
+    (with-current-buffer (process-buffer proc)
+      (display-buffer (current-buffer))
+      (shell-mode)
+      (mpsyt-mode)
+      (set-process-sentinel proc #'(lambda (process event) (if (equal "killed" event)
+							       (kill-buffer "*mpsyt*"))))
+      (set-process-filter proc 'comint-output-filter))))
+
+(defun mpsyt-execute (command)
+  "Send command to mpsyt process"
+  (interactive)
+  (let* ((proc-name "*mpsyt")
+	 (proc (cond ((get-process proc-name))
+		     ((start-mpsyt)))))
+    (process-send-string proc-name command)))
+
+(defun play-from-song-at-point ()
+  (interactive)
+  (let ((proc-name "*mpsyt")
+	(sline (buffer-substring-no-properties (line-beginning-position) (line-end-position))))
+    (mpsyt-execute "\n")
+    (search-backward sline)
+    (setq pline (buffer-substring-no-properties (line-beginning-position) (line-end-position)))
+    (mpsyt-execute (format "%s-\n" (car (split-string pline))))))
 
 (defun search-youtube (search-term)
   "search songs in youtube"
@@ -37,20 +95,12 @@
   (mpsyt-execute (format "\n/%s\n" search-term))
   (switch-to-buffer "*mpsyt*"))
 
-(defun start-mpsyt (proc-name)
-  (let ((proc (start-process proc-name "*mpsyt*" "mpsyt")))
-    (with-current-buffer (process-buffer proc)
-      (display-buffer (current-buffer))
-      (shell-mode)
-      (set-process-filter proc 'comint-output-filter))))
-
-(defun mpsyt-execute (command)
-  "Send command to mpsyt"
+(defun open-mpsyt-buffer ()
   (interactive)
-  (let* ((proc-name "*mpsyt")
-         (proc (cond ((get-process proc-name))
-		     ((start-mpsyt)))))
-    (process-send-string proc-name command)))
+  (cond ((get-process "*mpsyt"))
+	((start-mpsyt)))
+  (switch-to-buffer-other-window "*mpsyt*"))
+
 
 (define-minor-mode mpsyt-mode
   "Interact with mpsyt through emacs"
@@ -60,10 +110,11 @@
 	    (define-key map (kbd "<SPC>") '(lambda () "play/pause" (interactive) (mpsyt-execute (kbd "SPC"))))
 	    (define-key map (kbd "q") 'delete-window)
 	    (define-key map (kbd "<") '(lambda () "play next track in playlist" (interactive) (mpsyt-execute (kbd "<"))))
+	    (define-key map (kbd "o") 'play-from-song-at-point)
 	    (define-key map (kbd ">") '(lambda () "play previous track in playlist" (interactive) (mpsyt-execute (kbd ">"))))
 	    (define-key map (kbd "0") '(lambda () "increase volume" (interactive) (mpsyt-execute (kbd "0"))))
 	    (define-key map (kbd "9") '(lambda () "decrease volume" (interactive) (mpsyt-execute (kbd "9"))))
-            map))
+	    map))
 
 (define-minor-mode org-music-mode
   "Play music from org"
@@ -78,29 +129,26 @@
 	    (define-key map (kbd "C-c m n") '(lambda () "play previous track in playlist" (interactive) (mpsyt-execute (kbd ">"))))
 	    (define-key map (kbd "C-c m 0") '(lambda () "increase volume" (interactive) (mpsyt-execute (kbd "0"))))
 	    (define-key map (kbd "C-c m 9") '(lambda () "decrease volume" (interactive) (mpsyt-execute (kbd "9"))))
-            map)
+	    map)
 
   ;; define music speed commands
   (setq org-speed-commands-music
-	'(("o" . (lambda () "Open media at point"
-		   (let ((song-name (format "%s" (nth 4 (org-heading-components)))))
-		     (message "Streaming: %s" song-name)
-		     (mpsyt-execute (format "\n/%s\nadd 1\nvp\nall\n" song-name)))))
-	  ("s" . (lambda () "play/pause" (process-send-string "*mpsyt" (kbd "SPC"))))
-	  ("g" . (lambda () "open status buffer" (switch-to-buffer "*mpsyt*")))
-	  ("j" . (lambda () "play next track in playlist" (process-send-string "*mpsyt" (kbd "<"))))
-	  ("k" . (lambda () "play previous track in playlist" (process-send-string "*mpsyt" (kbd ">"))))
-	  ("h" . (lambda () "increase volume" (process-send-string "*mpsyt" (kbd "0"))))
-	  ("a" . (lambda () "enqueue selected" (play-list)))
-	  ("e" . (lambda () "play selected " (enqueue-list)))
-	  ("l" . (lambda () "decrease volume" (process-send-string "*mpsyt" (kbd "9"))))))
+	'(("o" . 'get-org-heading-at-point)
+	  ("g" . 'open-mpsyt-buffer)
+	  ("a" . 'play-list)
+	  ("e" . 'enqueue-list)
+	  ("s" . (lambda () "play/pause" (mpsyt-execute (kbd "SPC"))))
+	  ("j" . (lambda () "play next track in playlist" (mpsyt-execute (kbd "<"))))
+	  ("k" . (lambda () "play previous track in playlist" (mpsyt-execute (kbd ">"))))
+	  ("h" . (lambda () "increase volume" (mpsyt-execute (kbd "0"))))
+	  ("l" . (lambda () "decrease volume" (mpsyt-execute (kbd "9"))))))
 
   (defun org-speed-music (keys)
     "Use speed commands if at cursor at beginning of an org-heading line"
     (when (and (bolp) (looking-at org-outline-regexp))
       (cdr (assoc keys org-speed-commands-music))))
-  
+
   ;; add to org-speed-command-hook
   (add-hook 'org-speed-command-hook 'org-speed-music))
 
-(provide 'org-music-mode)
+(provide 'org-music)
