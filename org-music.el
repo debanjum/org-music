@@ -17,11 +17,18 @@
   (widen)
   (flatten headings))
 
+
+(defun search-song-at-point ()
+  (interactive)
+  (cond ((org-entry-get nil "QUERY"))
+	((nth 4 (org-heading-components)))))
+
 (defun play-song-at-point ()
   "Open song at point"
-  (let ((song-name (format "%s" (nth 4 (org-heading-components)))))
+  (let* ((song-name (format "%s" (nth 4 (org-heading-components))))
+	 (query (search-song-at-point)))
     (message "Streaming: %s" song-name)
-    (mpsyt-execute (format "\n/%s\n1\nvp\nall\n" (flatten song-name)))))
+    (mpsyt-execute (format "\n/%s\nadd 1\nvp\nall\n" (flatten query)))))
 
 (defun enqueue-song-at-point ()
   "Open song at point"
