@@ -131,6 +131,26 @@
   (mpsyt-execute (format "\n/%s\n" search-term))
   (switch-to-buffer "*mpsyt*"))
 
+(defun play-list-on-android ()
+  (android-play-org-entries (get-org-headings)))
+
+(defun android-play-org-entries (song-entries)
+  "map each song in playlist to its youtube-id and share via termux to android youtube player"
+  (mapcar #'(lambda (song)
+	      (android-share-youtube-song (get-youtube-id-of-song song)))
+	  song-entries))
+
+(defun get-youtube-id-of-song (song-entry)
+  "retrieve youtube-id of top result on youtube for org song heading via youtube-dl"
+  (replace-regexp-in-string
+   "\n$" ""
+   (shell-command-to-string
+    (format "youtube-dl --get-id ytsearch:\"%s\"" (car song-entry)))))
+
+(defun android-share-youtube-song (song-id)
+  "share constructed youtube-url via termux to play on android youtube player"
+  (shell-command-to-string (format "termux-open-url \"https://youtube.com/watch?v=%s\"" song-id)))
+
 (define-minor-mode mpsyt-mode
   "Interact with mpsyt through emacs"
   :lighter " Mpsyt"
