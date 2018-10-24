@@ -11,9 +11,9 @@
   (if (use-region-p)
       (narrow-to-region (point) (mark)))
   (setq headings
-	(org-element-map (org-element-parse-buffer) 'headline
-	  (lambda (hs) (when (equal "song" (org-element-property :TYPE hs))
-			 (org-element-property :title hs)))))
+        (org-element-map (org-element-parse-buffer) 'headline
+          (lambda (hs) (when (equal "song" (org-element-property :TYPE hs))
+                         (org-element-property :title hs)))))
   (widen)
   (flatten headings))
 
@@ -21,12 +21,12 @@
 (defun search-song-at-point ()
   (interactive)
   (cond ((org-entry-get nil "QUERY"))
-	((nth 4 (org-heading-components)))))
+        ((nth 4 (org-heading-components)))))
 
 (defun play-song-at-point ()
   "Open song at point"
   (let* ((song-name (format "%s" (nth 4 (org-heading-components))))
-	 (query (search-song-at-point)))
+         (query (search-song-at-point)))
     (message "Streaming: %s" song-name)
     (mpsyt-execute (format "\n/%s\nadd 1\nvp\nall\n" (flatten query)))))
 
@@ -43,28 +43,28 @@
       (shell-mode)
       (mpsyt-mode)
       (set-process-sentinel proc #'(lambda (process event) (if (equal "killed" event)
-							       (kill-buffer "*mpsyt*"))))
+                                                               (kill-buffer "*mpsyt*"))))
       (set-process-filter proc 'comint-output-filter))))
 
 (defun mpsyt-execute (command)
   "Send command to mpsyt process"
   (interactive)
   (let* ((proc-name "*mpsyt")
-	 (proc (cond ((get-process proc-name))
-		     ((start-mpsyt)))))
+         (proc (cond ((get-process proc-name))
+                     ((start-mpsyt)))))
     (process-send-string proc-name command)))
 
 (defun mpsyt-playing? ()
   "returns t if playing anything currently else nil"
   (if (get-process "*mpsyt")
       (with-temp-buffer
-	(progn
-	  (insert-buffer-substring "*mpsyt*")
-	  (end-of-buffer)
-	  (previous-line)
-	  (let* ((sline (buffer-substring-no-properties (line-beginning-position) (line-end-position)))
-		 (result (equal 0 (length sline))))
-	    (not result))))))
+        (progn
+          (insert-buffer-substring "*mpsyt*")
+          (end-of-buffer)
+          (previous-line)
+          (let* ((sline (buffer-substring-no-properties (line-beginning-position) (line-end-position)))
+                 (result (equal 0 (length sline))))
+            (not result))))))
 
 (defun enqueue-list ()
   "enqueue songs in active-region/sparse-tree/buffer"
@@ -72,23 +72,23 @@
   (if (mpsyt-playing?)
       (mpsyt-execute "q"))
   (let ((command
-	 (format "%s\nvp\nall\n"
-		 (seq-reduce
-		  #'(lambda (a b) (concatenate 'string a (format "/%s\nadd 1\n" b)))
-		  (get-org-headings) ""))))
+         (format "%s\nvp\nall\n"
+                 (seq-reduce
+                  #'(lambda (a b) (concatenate 'string a (format "/%s\nadd 1\n" b)))
+                  (get-org-headings) ""))))
     (message "%s" command)
     (mpsyt-execute command)))
 
-(defun play-list ()
+(defun play-list-mpsyt ()
   "play songs in active-region/sparse-tree/buffer"
   (interactive)
   (if (get-process "*mpsyt")
       (delete-process "*mpsyt*"))
   (mpsyt-execute
-   (format "\nvp\nrm 1-\n%svp\nall\n"
-	   (seq-reduce
-	    #'(lambda (a b) (concatenate 'string a (format "/%s\nadd 1\n" b)))
-	    (get-org-headings) ""))))
+   (format "\nvp\nrm 1-\n%svp\nshuffle all\n"
+           (seq-reduce
+            #'(lambda (a b) (concatenate 'string a (format "/%s\nadd 1\n" b)))
+            (get-org-headings) ""))))
 
 (defun play-agenda (search-string)
   "play org-agenda filtered playlist"
@@ -97,14 +97,14 @@
   ;; write filtered playlist to org file and open
   (org-agenda-write "/tmp/playlist.org" t)
   ;; get song-name from org playlist's headings, format it to enqueue and play in mpsyt, trigger mpsyt
-  (play-list)
+  (play-list-on-android)
   (kill-buffer "playlist.org"))
 
 (defun play-mpsyt-buffer-song-at-point ()
   "play song at point in mpsyt process buffer"
   (interactive)
   (let ((proc-name "*mpsyt")
-	(sline (buffer-substring-no-properties (line-beginning-position) (line-end-position))))
+        (sline (buffer-substring-no-properties (line-beginning-position) (line-end-position))))
     (mpsyt-execute "\n")
     (search-backward sline)
     (setq pline (buffer-substring-no-properties (line-beginning-position) (line-end-position)))
@@ -113,7 +113,7 @@
 (defun open-mpsyt-buffer ()
   (interactive)
   (cond ((get-process "*mpsyt"))
-	((start-mpsyt)))
+        ((start-mpsyt)))
   (switch-to-buffer-other-window "*mpsyt*"))
 
 (defun clear-playlist ()
@@ -137,8 +137,8 @@
 (defun android-play-org-entries (song-entries)
   "map each song in playlist to its youtube-id and share via termux to android youtube player"
   (mapcar #'(lambda (song)
-	      (android-share-youtube-song (get-youtube-id-of-song song)))
-	  song-entries))
+              (android-share-youtube-song (get-youtube-id-of-song song)))
+          song-entries))
 
 (defun get-youtube-id-of-song (song-entry)
   "retrieve youtube-id of top result on youtube for org song heading via youtube-dl"
