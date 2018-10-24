@@ -1,3 +1,4 @@
+(require 'cl)
 (require 'shell)
 (require 'org)
 
@@ -17,6 +18,29 @@
   (widen)
   (flatten headings))
 
+(defun log-song-state (state)
+  "add current state start time to logbook of song"
+  (interactive)
+  (let ((opos (point))
+        (log-spos (org-log-beginning t))
+        (log-time (format-time-string
+                   (org-time-stamp-format 'long 'inactive)(org-current-effective-time))))
+    (goto-char log-spos)
+    (insert state ": " log-time "\n")
+    (previous-line)
+    (org-indent-region (line-beginning-position) (line-end-position))
+    (goto-char opos)))
+
+(defun get-search-query ()
+  "use value of QUERY property if it exists to search provider, else use song headings"
+  (if (use-region-p)
+      (narrow-to-region (point) (mark)))
+  (setq queries
+        (org-element-map (org-element-parse-buffer) 'headline
+          (lambda (hs) (when (equal "song" (org-element-property :TYPE hs))
+                         (org-element-property :QUERY hs)))))
+  (widen)
+  (flatten queries))
 
 (defun search-song-at-point ()
   (interactive)
@@ -28,13 +52,16 @@
   (let* ((song-name (format "%s" (nth 4 (org-heading-components))))
          (query (search-song-at-point)))
     (message "Streaming: %s" song-name)
+    (log-song-state "ENQUEUED")
     (mpsyt-execute (format "\n/%s\nadd 1\nvp\nall\n" (flatten query)))))
 
 (defun enqueue-song-at-point ()
   "Open song at point"
-  (let ((song-name (format "%s" (nth 4 (org-heading-components)))))
+  (let ((song-name (format "%s" (nth 4 (org-heading-components))))
+        (query (search-song-at-point)))
     (message "Streaming: %s" song-name)
-    (mpsyt-execute (format "\n/%s\nadd 1\nvp\n<SPC>\n" (flatten song-name)))))
+    (log-song-state "ENQUEUED")
+    (mpsyt-execute (format "\n/%s\nadd 1\nvp\n<SPC>\n" (flatten query)))))
 
 (defun start-mpsyt ()
   (let ((proc (start-process "*mpsyt" "*mpsyt*" "mpsyt")))
