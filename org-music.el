@@ -158,6 +158,26 @@
   (mpsyt-execute (format "\n/%s\n" search-term))
   (switch-to-buffer "*mpsyt*"))
 
+(defun append-outline-to-song-entries ()
+  "add outline parents of all visible song headings to their org entries"
+  (interactive)
+  (while (not (org-entry-get nil "SEQ"))
+    (org-next-visible-heading 1)
+    (let ((outline (org-display-outline-path nil nil " " t)))
+      (if (equal "song" (org-entry-get nil "TYPE"))
+          (insert-outline-of-entry outline)))))
+
+(defun insert-outline-of-entry (outline)
+  "add outline parents of song heading at point to its org entries"
+  (progn
+    (org-next-visible-heading 1)
+    (insert "\n")
+    (previous-line)
+    (insert outline)
+    (beginning-of-line)
+    (org-cycle)
+    (org-previous-visible-heading 1)))
+
 (defun play-list-on-android ()
   (android-play-org-entries (get-org-headings)))
 
