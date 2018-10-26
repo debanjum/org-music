@@ -59,7 +59,7 @@
 ;; ------------------------------
 (defun mpv-start ()
   (shell-command
-   (format "mpv --idle --script ~/.config/mpv/mpris.so --input-ipc-server=/tmp/mpvsocket --ytdl-format=bestaudio &")))
+   (format "mpv --idle --input-ipc-server=/tmp/mpvsocket --ytdl-format=bestaudio &")))
 
 (defun mpv-running? ()
   (member "mpv" (split-string (shell-command-to-string "playerctl -l"))))
@@ -71,6 +71,15 @@
   (shell-command-to-string
    (format
     "echo '{ \"command\": [\"loadfile\", \"ytdl://ytsearch:\\\"%s\\\"\", \"append-play\"] }' | socat - /tmp/mpvsocket"
+    search-query)))
+
+(defun mpv-play (search-query)
+  "enqueue in mpv first youtube result based on search-query"
+  (when (not (mpv-running?))
+      (mpv-start))
+  (shell-command-to-string
+   (format
+    "echo '{ \"command\": [\"loadfile\", \"ytdl://ytsearch:\\\"%s\\\"\", \"append\"] }' | socat - /tmp/mpvsocket"
     search-query)))
 
 (defun enqueue-song-at-point ()
@@ -85,7 +94,7 @@
   "open song at point"
   (let ((song-name (format "%s" (nth 4 (org-heading-components))))
         (query (search-song-at-point)))
-    (mpv-enqueue (flatten query))
+    (mpv-play (flatten query))
     (message "Streaming: %s" song-name)
     (log-song-state "ENQUEUED")))
 
@@ -97,7 +106,7 @@
 (defun play-list ()
   "play songs in active-region/sparse-tree/buffer"
   (interactive)
-  (mapcar #'mpv-enqueue (get-org-headings)))
+  (mapcar #'mpv-play (get-org-headings)))
 
 
 ;; Control Music Player on Android via Termux
