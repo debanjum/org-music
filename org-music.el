@@ -64,6 +64,12 @@
 (defun mpv-running? ()
   (member "mpv" (split-string (shell-command-to-string "playerctl -l"))))
 
+(defun emms-enqueue (search-query)
+  (emms-add-url (format "https://youtube.com/watch?v=%s" (get-youtube-id-of-song (list search-query)))))
+
+(defun emms-play (search-query)
+  (emms-play-url (format "https://youtube.com/watch?v=%s" (get-youtube-id-of-song (list search-query)))))
+
 (defun mpv-enqueue (search-query)
   "enqueue in mpv first youtube result based on search-query"
   (when (not (mpv-running?))
@@ -86,7 +92,7 @@
   "enqueue song at point"
   (let ((song-name (format "%s" (nth 4 (org-heading-components))))
         (query (search-song-at-point)))
-    (mpv-enqueue (flatten query))
+    (emms-enqueue (flatten query))
     (message "Streaming: %s" song-name)
     (log-song-state "ENQUEUED")))
 
@@ -94,19 +100,19 @@
   "open song at point"
   (let ((song-name (format "%s" (nth 4 (org-heading-components))))
         (query (search-song-at-point)))
-    (mpv-play (flatten query))
+    (emms-play (flatten query))
     (message "Streaming: %s" song-name)
     (log-song-state "ENQUEUED")))
 
 (defun enqueue-list ()
   "enqueue songs in active-region/sparse-tree/buffer"
   (interactive)
-  (mapcar #'mpv-enqueue (get-org-headings)))
+  (mapcar #'emms-enqueue (get-org-headings)))
 
 (defun play-list ()
   "play songs in active-region/sparse-tree/buffer"
   (interactive)
-  (mapcar #'mpv-play (get-org-headings)))
+  (mapcar #'emms-play (get-org-headings)))
 
 
 ;; Control Music Player on Android via Termux
@@ -180,9 +186,9 @@
   (setq org-speed-commands-music
         '(("o" . (lambda () "play song at point" (play-song-at-point)))
           ("e" . (lambda () "enqueue song at point" (enqueue-song-at-point)))
-          ("s" . (lambda () "play/pause" (message "toggle play/pause") (playerctl-play-pause-song)))
-          ("j" . (lambda () "play next track in playlist" (playerctl-next-song)))
-          ("k" . (lambda () "play previous track in playlist" (playerctl-previous-song)))))
+          ("s" . (lambda () "play/pause" (message "toggle play/pause") (emms-pause)))
+          ("j" . (lambda () "play next track in playlist" (emms-previous)))
+          ("k" . (lambda () "play previous track in playlist" (emms-next)))))
 
   (defun org-speed-music (keys)
     "Use speed commands if at cursor at beginning of an org-heading line"
