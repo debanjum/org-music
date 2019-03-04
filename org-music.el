@@ -51,6 +51,11 @@
   (cond ((org-entry-get nil "QUERY"))
         ((nth 4 (org-heading-components)))))
 
+(defun get-song-source ()
+  "use value of CATEGORY property if it exists, else default to youtube. This is the source of the song"
+  (interactive)
+  (cond ((org-entry-get nil "CATEGORY"))
+        ("youtube")))
 
 ;; Music Player Controls
 ;; ---------------------
@@ -64,11 +69,17 @@
 (defun mpv-running? ()
   (member "mpv" (split-string (shell-command-to-string "playerctl -l"))))
 
-(defun emms-enqueue (search-query)
-  (emms-add-url (format "https://youtube.com/watch?v=%s" (get-youtube-id-of-song (list search-query)))))
+(defun get-media-url (search-query source)
+  (interactive)
+  (if (equal "nextcloud" source)
+      (get-nextcloud-url search-query)
+    (get-youtube-url search-query)))
 
-(defun emms-play (search-query)
-  (emms-play-url (format "https://youtube.com/watch?v=%s" (get-youtube-id-of-song (list search-query)))))
+(defun emms-enqueue (search-query source)
+  (emms-add-url (get-media-url search-query source)))
+
+(defun emms-play (search-query source)
+  (emms-play-url (get-media-url search-query source)))
 
 (defun mpv-enqueue (search-query)
   "enqueue in mpv first youtube result based on search-query"
@@ -91,16 +102,18 @@
 (defun enqueue-song-at-point ()
   "enqueue song at point"
   (let ((song-name (format "%s" (nth 4 (org-heading-components))))
-        (query (search-song-at-point)))
-    (emms-enqueue (flatten query))
+        (query (search-song-at-point))
+        (source (get-song-source)))
+    (emms-enqueue (flatten query) source)
     (message "Streaming: %s" song-name)
     (log-song-state "ENQUEUED")))
 
 (defun play-song-at-point ()
   "open song at point"
   (let ((song-name (format "%s" (nth 4 (org-heading-components))))
-        (query (search-song-at-point)))
-    (emms-play (flatten query))
+        (query (search-song-at-point))
+        (source (get-song-source)))
+    (emms-play (flatten query) source)
     (message "Streaming: %s" song-name)
     (log-song-state "ENQUEUED")))
 
@@ -136,12 +149,22 @@
               (android-share-youtube-song (get-youtube-id-of-song song)))
           song-entries))
 
+(defun get-youtube-url (search-query)
+  (format "https://youtube.com/watch?v=%s" (get-youtube-id-of-song (list search-query))))
+
 (defun get-youtube-id-of-song (song-entry)
   "retrieve youtube-id of top result on youtube for org song heading via youtube-dl"
   (replace-regexp-in-string
    "\n$" ""
    (shell-command-to-string
     (format "youtube-dl --get-id ytsearch:\"%s\"" (car song-entry)))))
+
+(defun get-nextcloud-url (song-entry)
+  "retrieve song url of top result on nextcloud for org song heading"
+  (replace-regexp-in-string
+   "\n$" ""
+   (shell-command-to-string
+    (format "~/Scripts/bin/nextcloud \"get_url\" \"%s\"" (car song-entry)))))
 
 (defun android-share-youtube-song (song-id)
   "share constructed youtube-url via termux to play on android youtube player"
