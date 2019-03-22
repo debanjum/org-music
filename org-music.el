@@ -90,18 +90,19 @@
     "echo '{ \"command\": [\"loadfile\", \"ytdl://ytsearch:\\\"%s\\\"\", \"append-play\"] }' | socat - /tmp/mpvsocket"
     search-query)))
 
-(defun jump-to-random-song ()
-  "jump to a random song in the music library"
+(defun jump-to-random-song (&optional match)
+  "jump to a random song satisfying 'match' in the music library"
   (interactive)
-  (let ((org-randomnote-candidates '("~/Notes/Music.org")))
-    (org-randomnote)
-    (while (not (equal "song" (org-entry-get nil "TYPE")))
-      (org-randomnote))))
+  (let ((org-randomnote-candidates '("~/Notes/Music.org"))
+        (song-match (concat (or match "") "+TYPE=\"song\"")))
+    (org-randomnote song-match)))
 
-(defun play-random-song ()
+(defun play-random-song (&optional match)
+  "play random song satisfying 'match' in the music library"
   (interactive)
-  (jump-to-random-song)
-  (play-song-at-point))
+  (jump-to-random-song (or match nil))
+  (play-song-at-point)
+  (bury-buffer))
 
 (defun mpv-play (search-query)
   "enqueue in mpv first youtube result based on search-query"
