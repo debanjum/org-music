@@ -5,6 +5,11 @@
 
 ;; Org Music Library Media Control
 ;; -------------------------------
+(defvar org-music-files '("~/Notes/Music.org"))
+
+(defvar org-music-last-playlist-filter nil
+  "Last org filter used to create playlist")
+
 (defun flatten (l)
   (cond ((null l) nil)
    ((atom l) (list l))
@@ -93,16 +98,25 @@
 (defun jump-to-random-song (&optional match)
   "jump to a random song satisfying 'match' in the music library"
   (interactive)
-  (let ((org-randomnote-candidates '("~/Notes/Music.org"))
-        (song-match (concat (or match "") "+TYPE=\"song\"")))
+  (let ((org-randomnote-candidates org-music-files)
+        (song-match (concat (or match org-music-last-playlist-filter "") "+TYPE=\"song\"")))
+    (setq org-music-last-playlist-filter match)
     (org-randomnote song-match)))
 
 (defun play-random-song (&optional match)
   "play random song satisfying 'match' in the music library"
   (interactive)
-  (jump-to-random-song (or match nil))
+  (jump-to-random-song (or match org-music-last-playlist-filter nil))
   (play-song-at-point)
   (bury-buffer))
+
+(defun play-random-songs (&optional match)
+  "Play random songs satisfying 'match' in the music library"
+  (interactive)
+  (let ((playlist-filter (or match org-music-last-playlist-filter)))
+    (play-random-song playlist-filter)
+    (add-hook 'emms-player-finished-hook 'play-random-songs)
+    (add-hook 'emms-player-stopped-hook #'(lambda () (remove-hook 'emms-player-finished-hook 'play-random-songs)))))
 
 (defun mpv-play (search-query)
   "enqueue in mpv first youtube result based on search-query"
