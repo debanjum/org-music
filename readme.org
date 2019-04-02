@@ -1,0 +1,30 @@
+Store and play music from a simple org-mode file
+
+Zero (dev) effort syncing, versioning, tagging, sharing, semantic and full-text search and some more straight out of the box.
+
+
+* How you ask ?
+  - It's plain text so you get versioning, syncing, full-text search with your tool of choice out of the box
+  - It's an org file so you get tags, semantic search, dynamic playlists
+  - It's emacs so you get to get play, interact and extend your library (and org music) without ever leaving emacs
+
+  - Arrange your music collection the way you like it.
+    I wanted my music library to reflect the path dependent nature of it's creation; not convert it into a sanitary, homogenized artist/album/song library.
+    You can choose to do whatever you want with it.
+
+  - Don't let you playlists be locked away on someone else's cloud.
+  - Carry or sync your music collection everywhere. It's a text file after all
+
+* Where's the actual music ?
+  The org file is just metadata about your media collection. Org-music uses the metadata to stream music from youtube by default.
+  The user adds org properties to specify the data source and query to use to search and stream the music.
+  Currently Nextcloud and local storage are supported as data sources. Can be easily extended to work with other data sources.
+
+* Why was this tool created ?
+  I was sick of the ad-hoc, ephemerality of my music collection. I was in love with the simple, sturdiness of emacs/org.
+  Who wants to lose playlists and songs, pay the non-fun upkeep costs of organizing your music collection when you can do much better in emacs + org.
+
+* When was this tool created ?
+  Org-music has been non-continuos development (and use) for way longer than I'd care to admit (or remember).
+  It started of as a soft-linked ghost replica of my music library.
+  I'd click the file, that'd call a shell script, that'd trigger vlc to stream the song from youtube!
