@@ -221,6 +221,28 @@
       (if (equal "song" (org-entry-get nil "TYPE"))
           (insert-outline-of-entry outline)))))
 
+(defun append-outline-to-song-query-property ()
+  "add outline parents of all visible song headings to their query property"
+  (interactive)
+  (while (not (org-entry-get nil "SEQ"))
+    (org-next-visible-heading 1)
+    (let ((outline (org-display-outline-path nil t " - " t)))
+      (if (equal "song" (org-entry-get nil "TYPE"))
+          (org-entry-put nil "QUERY" outline)))))
+
+(defun remove-colon-from-org-headings ()
+  "remove colon from non song org headings"
+  (interactive)
+  (while (or (not (org-entry-get nil "SEQ"))
+             (outline-invisible=p))
+    (org-next-visible-heading 1)
+    (let ((outline (org-display-outline-path nil t " - " t)))
+      (if (not (equal "song" (org-entry-get nil "TYPE")))
+          (progn
+            (end-of-line)
+            (if (equal ":" (string (char-before)))
+                (delete-backward-char 1)))))))
+
 (defun insert-outline-of-entry (outline)
   "add outline parents of song heading at point to its org entries"
   (progn
