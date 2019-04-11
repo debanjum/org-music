@@ -231,6 +231,8 @@
             (define-key map (kbd "C-c m <SPC>") '(lambda () "play/pause" (interactive) (playerctl-play-pause-song)))
             (define-key map (kbd "C-c m p") '(lambda () "play previous track in playlist" (interactive) (playerctl-previous-song)))
             (define-key map (kbd "C-c m n") '(lambda () "play next track in playlist" (interactive) (playerctl-next-song)))
+            (define-key map (kbd "C-c m r") '(lambda () "play previous track in playlist" (interactive) (play-random-song)))
+            (define-key map (kbd "C-c m R") '(lambda () "play next track in playlist" (interactive) (play-random-songs)))
             map)
 
   ;; define music speed commands
@@ -238,8 +240,8 @@
         '(("o" . (lambda () "play song at point" (play-song-at-point)))
           ("e" . (lambda () "enqueue song at point" (enqueue-song-at-point)))
           ("s" . (lambda () "play/pause" (message "toggle play/pause") (emms-pause)))
-          ("j" . (lambda () "play next track in playlist" (emms-previous)))
-          ("k" . (lambda () "play previous track in playlist" (emms-next)))))
+          ("d" . (lambda () "play next track in playlist" (emms-previous)))
+          ("f" . (lambda () "play previous track in playlist" (emms-next)))))
 
   (defun org-speed-music (keys)
     "Use speed commands if at cursor at beginning of an org-heading line"
