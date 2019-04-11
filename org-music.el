@@ -1,4 +1,3 @@
-(require 'cl)
 (require 'shell)
 (require 'org)
 (require 'playerctl)
@@ -117,6 +116,18 @@
     (play-random-song playlist-filter)
     (add-hook 'emms-player-finished-hook 'play-random-songs)
     (add-hook 'emms-player-stopped-hook #'(lambda () (remove-hook 'emms-player-finished-hook 'play-random-songs)))))
+
+(defun play-highlighted (start end)
+  (interactive "r")
+  (if (use-region-p)
+      (let ((regionp (buffer-substring-no-properties start end)))
+        (emms-play-url (get-media-url regionp "youtube")))))
+
+(defun enqueue-highlighted (start end)
+  (interactive "r")
+  (if (use-region-p)
+      (let ((regionp (buffer-substring-no-properties start end)))
+        (emms-add-url (get-media-url regionp "youtube")))))
 
 (defun mpv-play (search-query)
   "enqueue in mpv first youtube result based on search-query"
