@@ -26,11 +26,11 @@
    (t (loop for a in l appending (flatten a)))))
 
 (defun get-org-headings ()
-  "extract song headings from active/narrowed/buffer org"
+  "extract song headings from active/narrowed/sparse-tree region of org buffer"
   (if (use-region-p)
       (narrow-to-region (point) (mark)))
   (setq headings
-        (org-element-map (org-element-parse-buffer) 'headline
+        (org-element-map (org-element-parse-buffer "object" t) 'headline
           (lambda (hs) (when (equal "song" (org-element-property :TYPE hs))
                          (org-element-property :raw-value hs)))))
   (widen)
@@ -54,7 +54,7 @@
   (if (use-region-p)
       (narrow-to-region (point) (mark)))
   (setq queries
-        (org-element-map (org-element-parse-buffer) 'headline
+        (org-element-map (org-element-parse-buffer "object" t) 'headline
           (lambda (hs) (when (equal "song" (org-element-property :TYPE hs))
                          (org-element-property :QUERY hs)))))
   (widen)
