@@ -33,7 +33,7 @@
   (setq headings
         (org-element-map (org-element-parse-buffer "object" t) 'headline
           (lambda (hs) (when (equal "song" (org-element-property :TYPE hs))
-                         (org-element-property :raw-value hs)))))
+                         (list (org-element-property :raw-value hs)  (org-element-property :CATEGORY hs))))))
   (widen)
   headings)
 
@@ -170,16 +170,20 @@
     (message "Streaming: %s" song-name)
     (log-song-state "ENQUEUED")))
 
-(defun enqueue-list ()
+(defun enqueue-list (&optional songs-list)
   "enqueue songs in active-region/sparse-tree/buffer"
   (interactive)
-  (mapcar #'emms-enqueue (get-org-headings)))
+  (let ((songs (or songs-list (get-org-headings))))
+    (mapcar #'(lambda (s)
+                (apply #'play-cached-song (append s (list t))))
+            songs)))
 
 (defun play-list ()
   "play songs in active-region/sparse-tree/buffer"
   (interactive)
-  (mapcar #'emms-play (get-org-headings)))
-
+  (let ((songs (get-org-headings)))
+    (apply #'play-cached-song (pop songs))
+    (enqueue-list songs)))
 
 ;; Control Music Player on Android via Termux
 ;; ------------------------------------------
@@ -191,7 +195,7 @@
   (org-agenda-write "~/.playlist.org" t)
   ;; get song-name from org playlist's headings, format it to enqueue and play in mpsyt, trigger mpsyt
   (play-list-on-android)
-  (kill-buffer "playlist.org"))
+  (kill-buffer ".playlist.org"))
 
 (defun play-list-on-android ()
   "create playlist from org songs and share via termux to android music player"
@@ -203,7 +207,9 @@
   (write-playlist-to-file
    (mapconcat
     #'(lambda (song)
-        (format "#EXTINF:,%s\n%s" song (cache-song song nil nil "android")))
+        (format "#EXTINF:,%s\n%s"
+                (car song)
+                (apply #'cache-song (append song (list nil "android")))))
     song-entries
     "\n")))
 
@@ -259,7 +265,7 @@
   (interactive)
   (let ((song-file-location
          (format "%s%s.%s" org-music-media-directory song-name org-music-cache-song-format)))
-    (message "%s" song-file-location)
+    (message "cache location: %s" song-file-location)
     ;; if file doesn't exist, trim cache and download file
     (if (not (file-exists-p song-file-location))
         (progn
