@@ -33,7 +33,7 @@
   (setq headings
         (org-element-map (org-element-parse-buffer "object" t) 'headline
           (lambda (hs) (when (equal "song" (org-element-property :TYPE hs))
-                         (list (org-element-property :raw-value hs)  (org-element-property :CATEGORY hs))))))
+                         (list (org-element-property :raw-value hs) (org-element-property :CATEGORY hs))))))
   (widen)
   headings)
 
@@ -156,7 +156,7 @@
         (query (search-song-at-point))
         (source (get-song-source)))
     ;(emms-enqueue (flatten query) source)
-    (play-cached-song (flatten query) source t)
+    (play-cached-song (car (flatten query)) source t)
     (message "Streaming: %s" song-name)
     (log-song-state "ENQUEUED")))
 
@@ -166,7 +166,7 @@
         (query (search-song-at-point))
         (source (get-song-source)))
     ;(emms-play (flatten query) source)
-    (play-cached-song (flatten query) source nil)
+    (play-cached-song (car (flatten query)) source nil)
     (message "Streaming: %s" song-name)
     (log-song-state "ENQUEUED")))
 
@@ -241,7 +241,7 @@
   (replace-regexp-in-string
    "\n$" ""
    (shell-command-to-string
-    (format "~/Scripts/bin/nextcloud \"get_url\" \"%s\"" (car song-entry)))))
+    (format "~/Scripts/bin/nextcloud.py \"get_url\" \"%s\"" (car song-entry)))))
 
 (defun get-song (name file-location)
   "download org song from youtube via youtube-dl"
@@ -255,7 +255,7 @@
   "cache and play song"
   (interactive)
   (let ((uri-location (cache-song song-entry source)))
-    (message "%s" uri-location)
+    (message "%s" uri-location source)
     (if (equal source "nextcloud")
         (if enqueue
             (emms-add-url uri-location)
@@ -269,18 +269,18 @@
   (interactive)
   (let ((song-file-location
          (format "%s%s.%s" org-music-media-directory song-name org-music-cache-song-format)))
+    (message "cache location: %s, source: %s" song-file-location source)
     (if (equal source "nextcloud")
-        (get-media-url song-name source)
-      ((message "cache location: %s" song-file-location)
+        (get-nextcloud-url (if (listp song-name) song-name (list song-name)))
        ;; if file doesn't exist, trim cache and download file
-       (if (not (file-exists-p song-file-location))
-           (progn
-             (trim-cache)
-             (get-song song-name song-file-location)))
-       ;; return song uri based on operating system
-       (if (equal os "android")
-           (format "%s%s.%s" org-music-android-media-directory song-name org-music-cache-song-format)
-         song-file-location)))))
+      (if (not (file-exists-p song-file-location))
+          (progn
+            (trim-cache)
+            (get-song song-name song-file-location)))
+      ;; return song uri based on operating system
+      (if (equal os "android")
+          (format "%s%s.%s" org-music-android-media-directory song-name org-music-cache-song-format)
+        song-file-location))))
 
 (defun trim-cache ()
   "trim media cache if larger than cache-size"
