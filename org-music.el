@@ -35,8 +35,12 @@
       (narrow-to-region (point) (mark)))
   (setq headings
         (org-element-map (org-element-parse-buffer "object" t) 'headline
-          (lambda (hs) (when (equal "song" (org-element-property :TYPE hs))
-                         (list (org-element-property :raw-value hs) (org-element-property :CATEGORY hs))))))
+          (lambda (hs)
+            (when (equal "song" (org-element-property :TYPE hs))
+              (if (not (null (org-element-property :QUERY hs)))
+                  (list (org-element-property :QUERY hs) (org-element-property :CATEGORY hs))
+                (list (org-element-property :raw-value hs) (org-element-property :CATEGORY hs)))))))
+  (message "%s" headings)
   (widen)
   headings)
 
