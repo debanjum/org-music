@@ -34,7 +34,7 @@
           (lambda (hs) (when (equal "song" (org-element-property :TYPE hs))
                          (org-element-property :raw-value hs)))))
   (widen)
-  (flatten headings))
+  headings)
 
 (defun log-song-state (state)
   "add current state start time to logbook of song"
@@ -187,7 +187,7 @@
   ;; filter songs in music library using search terms
   (execute-kbd-macro (kbd (format "C-c a p %s SPC +{:TYPE:\\s-+song}" (replace-regexp-in-string " " " SPC " search-string))))
   ;; write filtered playlist to org file and open
-  (org-agenda-write "/tmp/playlist.org" t)
+  (org-agenda-write "~/.playlist.org" t)
   ;; get song-name from org playlist's headings, format it to enqueue and play in mpsyt, trigger mpsyt
   (play-list-on-android)
   (kill-buffer "playlist.org"))
