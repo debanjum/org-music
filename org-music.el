@@ -8,13 +8,14 @@
 (defvar org-music-media-directory "~/Music/OrgMusic/"
   "Location where media is cached")
 
+(defvar org-music-android-media-directory "file:///storage/emulated/0/Music/OrgMusic/"
+  "Location where media is cached on android")
+
 (defvar org-music-cache-size 30
   "Media cache size")
 
 (defvar org-music-cache-song-format "m4a"
   "Format to store songs in cache")
-
-(defvar org-music-root-uri "http://localhost:8000/")
 
 (defvar org-music-last-playlist-filter nil
   "Last org filter used to create playlist")
@@ -192,25 +193,27 @@
   (kill-buffer "playlist.org"))
 
 (defun play-list-on-android ()
-  (android-play-org-entries (get-org-headings)))
+  "create playlist from org songs and share via termux to android music player"
+  (create-m3u-playlist (get-org-headings))
+  (android-share-playlist))
 
-(defun android-play-org-entries (song-entries)
-  "map each song in playlist to its youtube-id and share via termux to android youtube player"
-  (create-playlist-file
+(defun create-m3u-playlist (song-entries)
+  "create m3u playlist from org songs"
+  (write-playlist-to-file
    (mapconcat
     #'(lambda (song)
-        (cache-song song nil nil "android"))
+        (format "#EXTINF:,%s\n%s" song (cache-song song nil nil "android")))
     song-entries
-    "\n")
-   org-music-media-directory))
+    "\n")))
 
-(defun create-playlist-file (m3u-playlist destination)
-  (let ((playlist-file (format "%s%s" destination "orgmusic.m3u")))
-    (write-region m3u-playlist nil playlist-file)
-    (android-share-playlist playlist-file)))
+(defun write-playlist-to-file (m3u-playlist)
+  (let ((playlist-file (format "%s%s" org-music-media-directory "orgmusic.m3u")))
+    (write-region (format "#EXTM3U\n%s" m3u-playlist) nil playlist-file)))
 
-(defun android-share-playlist (playlist-file)
-  (shell-command-to-string (format "termux-open %S" playlist-file)))
+(defun android-share-playlist ()
+  "share playlist via termux to an android music player"
+  (let ((playlist-file (format "%s%s" org-music-android-media-directory "orgmusic.m3u")))
+  (shell-command-to-string (format "termux-open %S" playlist-file))))
 
 (defun get-youtube-url (search-query)
   (format "https://youtube.com/watch?v=%s" (get-youtube-id-of-song (list search-query))))
@@ -263,7 +266,7 @@
           (get-song song-name song-file-location)))
     ;; return song uri based on operating system
     (if (equal os "android")
-        (format "%s%s.%s" org-music-root-uri song-name org-music-cache-song-format)
+        (format "%s%s.%s" org-music-android-media-directory song-name org-music-cache-song-format)
       song-file-location)))
 
 (defun trim-cache ()
