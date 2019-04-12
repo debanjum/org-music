@@ -27,6 +27,7 @@
 
 (defun get-org-headings ()
   "extract song headings from active/narrowed/sparse-tree region of org buffer"
+  (interactive)
   (if (use-region-p)
       (narrow-to-region (point) (mark)))
   (setq headings
@@ -90,10 +91,10 @@
       (get-nextcloud-url search-query)
     (get-youtube-url search-query)))
 
-(defun emms-enqueue (search-query source)
+(defun emms-enqueue (search-query &optional source)
   (emms-add-url (get-media-url search-query source)))
 
-(defun emms-play (search-query source)
+(defun emms-play (search-query &optional source)
   (emms-play-url (get-media-url search-query source)))
 
 (defun mpv-enqueue (search-query)
