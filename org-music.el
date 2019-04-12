@@ -20,6 +20,9 @@
 (defvar org-music-last-playlist-filter nil
   "Last org filter used to create playlist")
 
+(defvar org-music-next-cloud-script "~/Scripts/bin/nextcloud.py"
+  "Nextcloud script location. Gets song's nextcloud stream url")
+
 (defun flatten (l)
   (cond ((null l) nil)
    ((atom l) (list l))
@@ -241,7 +244,7 @@
   (replace-regexp-in-string
    "\n$" ""
    (shell-command-to-string
-    (format "~/Scripts/bin/nextcloud.py \"get_url\" \"%s\"" (car song-entry)))))
+    (format "%s \"get_url\" \"%s\"" org-music-next-cloud-script (car song-entry)))))
 
 (defun get-song (name file-location)
   "download org song from youtube via youtube-dl"
