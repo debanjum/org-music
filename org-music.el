@@ -9,6 +9,12 @@
 (defvar org-music-media-directory "~/Music/OrgMusic/"
   "Location where media is cached")
 
+(defvar org-music-cache-size 30
+  "Media cache size")
+
+(defvar org-music-cache-song-format "m4a"
+  "Format to store songs in cache")
+
 (defvar org-music-last-playlist-filter nil
   "Last org filter used to create playlist")
 
@@ -221,10 +227,11 @@
    (shell-command-to-string
     (format "~/Scripts/bin/nextcloud \"get_url\" \"%s\"" (car song-entry)))))
 
-(defun get-song (song-entry)
+(defun get-song (song-name)
   "download org song from youtube via youtube-dl"
   (interactive)
-  (let ((download-command (format "youtube-dl -f m4a --quiet ytsearch:\"%1$s\" -o \"%2$s%1$s.m4a\"" (car song-entry) org-music-media-directory)))
+  (let ((download-command
+         (format "youtube-dl -f %3$s --quiet ytsearch:\"%1$s\" -o \"%2$s%1$s.%3$s\"" song-name org-music-media-directory org-music-cache-song-format)))
     (message "%s" download-command)
     (shell-command-to-string download-command)))
 
@@ -237,10 +244,19 @@
 (defun play-cache-song (song-entry enqueue)
   "If song not available in local, download, then play"
   (interactive)
-  (let ((song-local-location (format "%s%s.m4a" org-music-media-directory (car song-entry))))
-  (if (not (file-exists-p song-local-location))
-      (get-song song-entry))
-  (play-local-song song-local-location enqueue)))
+  (let ((song-name
+         (if (listp song-entry) (car song-entry) (song-entry)))
+        (song-local-location
+         (format "%s%s.%s" org-music-media-directory song-name org-music-cache-song-format)))
+    (if (not (file-exists-p song-local-location))
+        (trim-cache)
+        (get-song song))
+    (play-local-song song-local-location enqueue)))
+
+(defun trim-cache ()
+  "trim media cache if larger than cache-size"
+  (interactive)
+  (shell-command-to-string (format "ls -tp %s | grep -v '/$' | tail -n +%s | xargs -I \{\} rm -- \{\}" org-music-media-directory org-music-cache-size)))
 
 ;; Org Music Library Metadata Enhancement Methods
 ;; ----------------------------------------------
