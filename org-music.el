@@ -147,21 +147,13 @@
     "echo '{ \"command\": [\"loadfile\", \"ytdl://ytsearch:\\\"%s\\\"\", \"append\"] }' | socat - /tmp/mpvsocket"
     search-query)))
 
-(defun cache-play-song-at-point ()
-  "download song at point, play downloaded"
-  (let ((song-name (format "%s" (nth 4 (org-heading-components))))
-        (query (search-song-at-point))
-        (source (get-song-source)))
-    (emms-play (flatten query) source)
-    (message "Streaming: %s" song-name)
-    (log-song-state "ENQUEUED")))
-
 (defun enqueue-song-at-point ()
   "enqueue song at point"
   (let ((song-name (format "%s" (nth 4 (org-heading-components))))
         (query (search-song-at-point))
         (source (get-song-source)))
-    (emms-enqueue (flatten query) source)
+    ;(emms-enqueue (flatten query) source)
+    (play-cache-song (flatten query) source t)
     (message "Streaming: %s" song-name)
     (log-song-state "ENQUEUED")))
 
@@ -170,7 +162,8 @@
   (let ((song-name (format "%s" (nth 4 (org-heading-components))))
         (query (search-song-at-point))
         (source (get-song-source)))
-    (emms-play (flatten query) source)
+    ;(emms-play (flatten query) source)
+    (play-cache-song (flatten query) source nil)
     (message "Streaming: %s" song-name)
     (log-song-state "ENQUEUED")))
 
@@ -227,11 +220,11 @@
    (shell-command-to-string
     (format "~/Scripts/bin/nextcloud \"get_url\" \"%s\"" (car song-entry)))))
 
-(defun get-song (song-name)
+(defun get-song (song-name song-local-location)
   "download org song from youtube via youtube-dl"
   (interactive)
   (let ((download-command
-         (format "youtube-dl -f %3$s --quiet ytsearch:\"%1$s\" -o \"%2$s%1$s.%3$s\"" song-name org-music-media-directory org-music-cache-song-format)))
+         (format "youtube-dl -f %s --quiet ytsearch:%S -o %S" org-music-cache-song-format song-name song-local-location)))
     (message "%s" download-command)
     (shell-command-to-string download-command)))
 
@@ -241,16 +234,18 @@
       (emms-add-file song-location)
     (emms-play-file song-location)))
 
-(defun play-cache-song (song-entry enqueue)
+(defun play-cache-song (song-entry source enqueue)
   "If song not available in local, download, then play"
   (interactive)
   (let ((song-name
          (if (listp song-entry) (car song-entry) (song-entry)))
         (song-local-location
          (format "%s%s.%s" org-music-media-directory song-name org-music-cache-song-format)))
+    (message "%s" song-local-location)
     (if (not (file-exists-p song-local-location))
-        (trim-cache)
-        (get-song song))
+        (progn
+          (trim-cache)
+          (get-song song-name song-local-location)))
     (play-local-song song-local-location enqueue)))
 
 (defun trim-cache ()
