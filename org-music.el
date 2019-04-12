@@ -6,6 +6,9 @@
 ;; -------------------------------
 (defvar org-music-files '("~/Notes/Music.org"))
 
+(defvar org-music-media-directory "~/Music/OrgMusic/"
+  "Location where media is cached")
+
 (defvar org-music-last-playlist-filter nil
   "Last org filter used to create playlist")
 
@@ -138,6 +141,15 @@
     "echo '{ \"command\": [\"loadfile\", \"ytdl://ytsearch:\\\"%s\\\"\", \"append\"] }' | socat - /tmp/mpvsocket"
     search-query)))
 
+(defun cache-play-song-at-point ()
+  "download song at point, play downloaded"
+  (let ((song-name (format "%s" (nth 4 (org-heading-components))))
+        (query (search-song-at-point))
+        (source (get-song-source)))
+    (emms-play (flatten query) source)
+    (message "Streaming: %s" song-name)
+    (log-song-state "ENQUEUED")))
+
 (defun enqueue-song-at-point ()
   "enqueue song at point"
   (let ((song-name (format "%s" (nth 4 (org-heading-components))))
@@ -198,6 +210,10 @@
    (shell-command-to-string
     (format "youtube-dl --get-id ytsearch:\"%s\"" (car song-entry)))))
 
+(defun android-share-youtube-song (song-id)
+  "share constructed youtube-url via termux to play on android youtube player"
+  (shell-command-to-string (format "termux-open-url \"https://youtube.com/watch?v=%s\"" song-id)))
+
 (defun get-nextcloud-url (song-entry)
   "retrieve song url of top result on nextcloud for org song heading"
   (replace-regexp-in-string
@@ -205,10 +221,26 @@
    (shell-command-to-string
     (format "~/Scripts/bin/nextcloud \"get_url\" \"%s\"" (car song-entry)))))
 
-(defun android-share-youtube-song (song-id)
-  "share constructed youtube-url via termux to play on android youtube player"
-  (shell-command-to-string (format "termux-open-url \"https://youtube.com/watch?v=%s\"" song-id)))
+(defun get-song (song-entry)
+  "download org song from youtube via youtube-dl"
+  (interactive)
+  (let ((download-command (format "youtube-dl -f m4a --quiet ytsearch:\"%1$s\" -o \"%2$s%1$s.m4a\"" (car song-entry) org-music-media-directory)))
+    (message "%s" download-command)
+    (shell-command-to-string download-command)))
 
+(defun play-local-song (song-location enqueue)
+  (interactive)
+  (if enqueue
+      (emms-add-file song-location)
+    (emms-play-file song-location)))
+
+(defun play-cache-song (song-entry enqueue)
+  "If song not available in local, download, then play"
+  (interactive)
+  (let ((song-local-location (format "%s%s.m4a" org-music-media-directory (car song-entry))))
+  (if (not (file-exists-p song-local-location))
+      (get-song song-entry))
+  (play-local-song song-local-location enqueue)))
 
 ;; Org Music Library Metadata Enhancement Methods
 ;; ----------------------------------------------
