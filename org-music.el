@@ -1,6 +1,5 @@
 (require 'shell)
 (require 'org)
-(require 'playerctl)
 
 ;; Org Music Library Media Control
 ;; -------------------------------
@@ -251,12 +250,10 @@
         (emms-add-file uri-location)
       (emms-play-file uri-location))))
 
-(defun cache-song (song-entry &optional source enqueue os)
+(defun cache-song (song-name &optional source enqueue os)
   "If song not available in local, download"
   (interactive)
-  (let ((song-name
-         (if (listp song-entry) (car song-entry) (song-entry)))
-        (song-file-location
+  (let ((song-file-location
          (format "%s%s.%s" org-music-media-directory song-name org-music-cache-song-format)))
     (message "%s" song-file-location)
     ;; if file doesn't exist, trim cache and download file
@@ -325,9 +322,9 @@
   :keymap (let ((map (make-sparse-keymap)))
             (define-key map (kbd "C-c m o") 'play-list)
             (define-key map (kbd "C-c m e") 'enqueue-list)
-            (define-key map (kbd "C-c m <SPC>") '(lambda () "play/pause" (interactive) (playerctl-play-pause-song)))
-            (define-key map (kbd "C-c m p") '(lambda () "play previous track in playlist" (interactive) (playerctl-previous-song)))
-            (define-key map (kbd "C-c m n") '(lambda () "play next track in playlist" (interactive) (playerctl-next-song)))
+            (define-key map (kbd "C-c m <SPC>") '(lambda () "play/pause" (interactive) (emms-pause)))
+            (define-key map (kbd "C-c m p") '(lambda () "play previous track in playlist" (interactive) (emms-previous)))
+            (define-key map (kbd "C-c m n") '(lambda () "play next track in playlist" (interactive) (emms-next)))
             (define-key map (kbd "C-c m r") '(lambda () "play previous track in playlist" (interactive) (play-random-song)))
             (define-key map (kbd "C-c m R") '(lambda () "play next track in playlist" (interactive) (play-random-songs)))
             map)
