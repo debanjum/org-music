@@ -32,7 +32,7 @@
   (setq headings
         (org-element-map (org-element-parse-buffer) 'headline
           (lambda (hs) (when (equal "song" (org-element-property :TYPE hs))
-                         (org-element-property :title hs)))))
+                         (org-element-property :raw-value hs)))))
   (widen)
   (flatten headings))
 
