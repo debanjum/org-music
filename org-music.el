@@ -209,7 +209,7 @@
     #'(lambda (song)
         (format "#EXTINF:,%s\n%s"
                 (car song)
-                (apply #'cache-song (append song (list nil "android")))))
+                (apply #'cache-song (append song (list "android")))))
     song-entries
     "\n")))
 
@@ -254,27 +254,33 @@
 (defun play-cached-song (song-entry &optional source enqueue)
   "cache and play song"
   (interactive)
-  (let ((uri-location (cache-song song-entry source enqueue)))
+  (let ((uri-location (cache-song song-entry source)))
     (message "%s" uri-location)
-    (if enqueue
-        (emms-add-file uri-location)
-      (emms-play-file uri-location))))
+    (if (equal source "nextcloud")
+        (if enqueue
+            (emms-add-url uri-location)
+          (emms-play-url uri-location))
+      (if enqueue
+          (emms-add-file uri-location)
+      (emms-play-file uri-location)))))
 
-(defun cache-song (song-name &optional source enqueue os)
+(defun cache-song (song-name &optional source os)
   "If song not available in local, download"
   (interactive)
   (let ((song-file-location
          (format "%s%s.%s" org-music-media-directory song-name org-music-cache-song-format)))
-    (message "cache location: %s" song-file-location)
-    ;; if file doesn't exist, trim cache and download file
-    (if (not (file-exists-p song-file-location))
-        (progn
-          (trim-cache)
-          (get-song song-name song-file-location)))
-    ;; return song uri based on operating system
-    (if (equal os "android")
-        (format "%s%s.%s" org-music-android-media-directory song-name org-music-cache-song-format)
-      song-file-location)))
+    (if (equal source "nextcloud")
+        (get-media-url song-name source)
+      ((message "cache location: %s" song-file-location)
+       ;; if file doesn't exist, trim cache and download file
+       (if (not (file-exists-p song-file-location))
+           (progn
+             (trim-cache)
+             (get-song song-name song-file-location)))
+       ;; return song uri based on operating system
+       (if (equal os "android")
+           (format "%s%s.%s" org-music-android-media-directory song-name org-music-cache-song-format)
+         song-file-location)))))
 
 (defun trim-cache ()
   "trim media cache if larger than cache-size"
