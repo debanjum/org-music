@@ -15,6 +15,8 @@
 (defvar org-music-cache-song-format "m4a"
   "Format to store songs in cache")
 
+(defvar org-music-root-uri "http://localhost:8000/")
+
 (defvar org-music-last-playlist-filter nil
   "Last org filter used to create playlist")
 
@@ -153,7 +155,7 @@
         (query (search-song-at-point))
         (source (get-song-source)))
     ;(emms-enqueue (flatten query) source)
-    (play-cache-song (flatten query) source t)
+    (play-cached-song (flatten query) source t)
     (message "Streaming: %s" song-name)
     (log-song-state "ENQUEUED")))
 
@@ -163,7 +165,7 @@
         (query (search-song-at-point))
         (source (get-song-source)))
     ;(emms-play (flatten query) source)
-    (play-cache-song (flatten query) source nil)
+    (play-cached-song (flatten query) source nil)
     (message "Streaming: %s" song-name)
     (log-song-state "ENQUEUED")))
 
@@ -195,9 +197,21 @@
 
 (defun android-play-org-entries (song-entries)
   "map each song in playlist to its youtube-id and share via termux to android youtube player"
-  (mapcar #'(lambda (song)
-              (android-share-youtube-song (get-youtube-id-of-song song)))
-          song-entries))
+  (create-playlist-file
+   (mapconcat
+    #'(lambda (song)
+        (cache-song song nil nil "android"))
+    song-entries
+    "\n")
+   org-music-media-directory))
+
+(defun create-playlist-file (m3u-playlist destination)
+  (let ((playlist-file (format "%s%s" destination "orgmusic.m3u")))
+    (write-region m3u-playlist nil playlist-file)
+    (android-share-playlist playlist-file)))
+
+(defun android-share-playlist (playlist-file)
+  (shell-command-to-string (format "termux-open %S" playlist-file)))
 
 (defun get-youtube-url (search-query)
   (format "https://youtube.com/watch?v=%s" (get-youtube-id-of-song (list search-query))))
@@ -220,33 +234,40 @@
    (shell-command-to-string
     (format "~/Scripts/bin/nextcloud \"get_url\" \"%s\"" (car song-entry)))))
 
-(defun get-song (song-name song-local-location)
+(defun get-song (name file-location)
   "download org song from youtube via youtube-dl"
   (interactive)
   (let ((download-command
-         (format "youtube-dl -f %s --quiet ytsearch:%S -o %S" org-music-cache-song-format song-name song-local-location)))
+         (format "youtube-dl -f %s --quiet ytsearch:%S -o %S" org-music-cache-song-format name file-location)))
     (message "%s" download-command)
     (shell-command-to-string download-command)))
 
-(defun play-local-song (song-location enqueue)
+(defun play-cached-song (song-entry &optional source enqueue)
+  "cache and play song"
   (interactive)
-  (if enqueue
-      (emms-add-file song-location)
-    (emms-play-file song-location)))
+  (let ((uri-location (cache-song song-entry source enqueue)))
+    (message "%s" uri-location)
+    (if enqueue
+        (emms-add-file uri-location)
+      (emms-play-file uri-location))))
 
-(defun play-cache-song (song-entry source enqueue)
-  "If song not available in local, download, then play"
+(defun cache-song (song-entry &optional source enqueue os)
+  "If song not available in local, download"
   (interactive)
   (let ((song-name
          (if (listp song-entry) (car song-entry) (song-entry)))
-        (song-local-location
+        (song-file-location
          (format "%s%s.%s" org-music-media-directory song-name org-music-cache-song-format)))
-    (message "%s" song-local-location)
-    (if (not (file-exists-p song-local-location))
+    (message "%s" song-file-location)
+    ;; if file doesn't exist, trim cache and download file
+    (if (not (file-exists-p song-file-location))
         (progn
           (trim-cache)
-          (get-song song-name song-local-location)))
-    (play-local-song song-local-location enqueue)))
+          (get-song song-name song-file-location)))
+    ;; return song uri based on operating system
+    (if (equal os "android")
+        (format "%s%s.%s" org-music-root-uri song-name org-music-cache-song-format)
+      song-file-location)))
 
 (defun trim-cache ()
   "trim media cache if larger than cache-size"
