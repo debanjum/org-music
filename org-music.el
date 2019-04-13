@@ -293,14 +293,15 @@
   "trim media cache if larger than cache-size"
   (interactive)
   (let ((sorted-files
-         (mapcar
-          'first
-          (sort
-           (directory-files-and-attributes
-            (expand-file-name org-music-media-directory) t directory-files-no-dot-files-regexp)
-           #'(lambda (first second) (> (encode-time (nth 5 first) 'integer) (encode-time (nth 5 second) 'integer)))))))
-    (if (> (list-length sorted-files) org-music-cache-size)
-        (mapcar 'delete-file (last sorted-files (- (list-length sorted-files) org-music-cache-size))))))
+         (reverse
+         (sort
+          (directory-files (expand-file-name org-music-media-directory) t directory-files-no-dot-files-regexp)
+          'file-newer-than-file-p))))
+    (setq excess-count (- (list-length sorted-files) org-music-cache-size))
+    (if (> excess-count 0)
+        (progn
+              (message "trim music cache of: %s" (last-sorted-files excess-count))
+              (mapcar 'delete-file (last sorted-files excess-count))))))
 
 ;; Org Music Library Metadata Enhancement Methods
 ;; ----------------------------------------------
