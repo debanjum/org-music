@@ -292,7 +292,15 @@
 (defun trim-cache ()
   "trim media cache if larger than cache-size"
   (interactive)
-  (shell-command-to-string (format "ls -tp %s | grep -v '/$' | tail -n +%s | xargs -I \{\} rm -- \{\}" org-music-media-directory org-music-cache-size)))
+  (let ((sorted-files
+         (mapcar
+          'first
+          (sort
+           (directory-files-and-attributes
+            (expand-file-name org-music-media-directory) t directory-files-no-dot-files-regexp)
+           #'(lambda (first second) (> (encode-time (nth 5 first) 'integer) (encode-time (nth 5 second) 'integer)))))))
+    (if (> (list-length sorted-files) org-music-cache-size)
+        (mapcar 'delete-file (last sorted-files (- (list-length sorted-files) org-music-cache-size))))))
 
 ;; Org Music Library Metadata Enhancement Methods
 ;; ----------------------------------------------
