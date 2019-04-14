@@ -4,7 +4,7 @@
 
 ;; Author: Debanjum Singh Solanky <debanjum@gmail.com>
 ;; Version: 1.0
-;; Package-Requires: ((org "9.0") (emms "5.0") (request "1.0") (org-randomnote "0.1.0"))
+;; Package-Requires: ((org "9.0") (emms "5.0") (org-randomnote "0.1"))
 ;; Keywords: hypermedia, multimedia, outlines, music, org-mode
 ;; URL: http://gitlab.com/debanjum/org-music
 
@@ -36,8 +36,8 @@
 
 
 (require 'shell)
-(require 'emms)
 (require 'org)
+(require 'emms)
 (require 'org-randomnote)
 
 (declare-function emms-add-url "ext:emms")
@@ -168,7 +168,7 @@ Read, write path on Linux. Write path on Android relative to Termux root")
     "echo '{ \"command\": [\"loadfile\", \"ytdl://ytsearch:\\\"%s\\\"\", \"append-play\"] }' | socat - /tmp/mpvsocket"
     search-query)))
 
-(defun org-music--jump-to-random-song (&optional match)
+(defun org-music-jump-to-random-song (&optional match)
   "Jump to a random song satisfying 'MATCH' in the music library."
   (interactive)
   (let ((org-randomnote-candidates org-music-files)
@@ -176,29 +176,29 @@ Read, write path on Linux. Write path on Android relative to Termux root")
     (setq org-music-last-playlist-filter match)
     (org-randomnote song-match)))
 
-(defun org-music--play-random-song (&optional match)
+(defun org-music-play-random-song (&optional match)
   "Play random song satisfying 'MATCH' in the music library."
   (interactive)
-  (org-music--jump-to-random-song (or match org-music-last-playlist-filter nil))
-  (org-music--play-song-at-point)
+  (org-music-jump-to-random-song (or match org-music-last-playlist-filter nil))
+  (org-music-play-song-at-point)
   (bury-buffer))
 
-(defun org-music--play-random-songs (&optional match)
+(defun org-music-play-random-songs (&optional match)
   "Play random songs satisfying 'MATCH' in the music library."
   (interactive)
   (let ((playlist-filter (or match org-music-last-playlist-filter)))
-    (org-music--play-random-song playlist-filter)
-    (add-hook 'emms-player-finished-hook 'org-music--play-random-songs)
-    (add-hook 'emms-player-stopped-hook #'(lambda () (remove-hook 'emms-player-finished-hook 'org-music--play-random-songs)))))
+    (org-music-play-random-song playlist-filter)
+    (add-hook 'emms-player-finished-hook 'org-music-play-random-songs)
+    (add-hook 'emms-player-stopped-hook #'(lambda () (remove-hook 'emms-player-finished-hook 'org-music-play-random-songs)))))
 
-(defun org-music--play-highlighted (start end)
+(defun org-music-play-highlighted (start end)
   "Play highlighted text between START and END."
   (interactive "r")
   (if (use-region-p)
       (let ((regionp (buffer-substring-no-properties start end)))
         (emms-play-url (org-music--get-media-url regionp "youtube")))))
 
-(defun org-music--enqueue-highlighted (start end)
+(defun org-music-enqueue-highlighted (start end)
   "Enqueue highlighted text between START and END."
   (interactive "r")
   (if (use-region-p)
@@ -214,7 +214,7 @@ Read, write path on Linux. Write path on Android relative to Termux root")
     "echo '{ \"command\": [\"loadfile\", \"ytdl://ytsearch:\\\"%s\\\"\", \"append\"] }' | socat - /tmp/mpvsocket"
     search-query)))
 
-(defun org-music--enqueue-song-at-point ()
+(defun org-music-enqueue-song-at-point ()
   "Enqueue song at point."
   (let ((song-name (format "%s" (nth 4 (org-heading-components))))
         (query (org-music--search-song-at-point))
@@ -223,7 +223,7 @@ Read, write path on Linux. Write path on Android relative to Termux root")
     (message "Streaming: %s" song-name)
     (org-music--log-song-state "ENQUEUED")))
 
-(defun org-music--play-song-at-point ()
+(defun org-music-play-song-at-point ()
   "Open song at point."
   (let ((song-name (format "%s" (nth 4 (org-heading-components))))
         (query (org-music--search-song-at-point))
@@ -232,7 +232,7 @@ Read, write path on Linux. Write path on Android relative to Termux root")
     (message "Streaming: %s" song-name)
     (org-music--log-song-state "ENQUEUED")))
 
-(defun org-music--enqueue-list (&optional songs-list)
+(defun org-music-enqueue-list (&optional songs-list)
   "Enqueue SONGS-LIST in active/narrowed/sparse-tree region of org buffer."
   (interactive)
   (let ((songs (or songs-list (org-music--get-org-headings))))
@@ -240,7 +240,7 @@ Read, write path on Linux. Write path on Android relative to Termux root")
                 (apply #'org-music--play-cached-song (append s (list t))))
             songs)))
 
-(defun org-music--play-list ()
+(defun org-music-play-list ()
   "Play songs in active/narrowed/sparse-tree region of org buffer."
   (interactive)
   (let ((songs (org-music--get-org-headings)))
@@ -249,17 +249,17 @@ Read, write path on Linux. Write path on Android relative to Termux root")
 
 ;; Control Music Player on Android via Termux
 ;; ------------------------------------------
-(defun org-music--play-agenda-on-android (search-string)
+(defun org-music-play-agenda-on-android (search-string)
   "Play `org-agenda' SEARCH-STRING filtered playlist on android."
   ;; filter songs in music library using search terms
   (execute-kbd-macro (kbd (format "C-c a p %s SPC +{:TYPE:\\s-+song}" (replace-regexp-in-string " " " SPC " search-string))))
   ;; write filtered playlist to org file and open
   (org-agenda-write "~/.playlist.org" t)
   ;; get song-name from org playlist's headings, format it to enqueue and play in mpsyt, trigger mpsyt
-  (org-music--play-list-on-android)
+  (org-music-play-list-on-android)
   (kill-buffer ".playlist.org"))
 
-(defun org-music--play-list-on-android ()
+(defun org-music-play-list-on-android ()
   "Create playlist from org song headings and share via Termux to android music player."
   (org-music--create-m3u-playlist (org-music--get-org-headings))
   (org-music--android-share-playlist))
@@ -408,15 +408,15 @@ Read, write path on Linux. Write path on Android relative to Termux root")
 ;; Configure Org-Music Mode
 (define-minor-mode org-music-mode
   "Play music from org"
-  :lighter " Org-music"
+  :lighter " Org-Music"
   :keymap (let ((map (make-sparse-keymap)))
-            (define-key map (kbd "C-c m o") 'org-music--play-list)
-            (define-key map (kbd "C-c m e") 'org-music--enqueue-list)
-            (define-key map (kbd "C-c m <SPC>") '(lambda () "play/pause" (interactive) (emms-pause)))
-            (define-key map (kbd "C-c m p") '(lambda () "play previous track in playlist" (interactive) (emms-previous)))
-            (define-key map (kbd "C-c m n") '(lambda () "play next track in playlist" (interactive) (emms-next)))
-            (define-key map (kbd "C-c m r") '(lambda () "play previous track in playlist" (interactive) (org-music--play-random-song)))
-            (define-key map (kbd "C-c m R") '(lambda () "play next track in playlist" (interactive) (org-music--play-random-songs)))
+            (define-key map (kbd "C-x p o") 'org-music-play-list)
+            (define-key map (kbd "C-x p e") 'org-music-enqueue-list)
+            (define-key map (kbd "C-x p <SPC>") '(lambda () "play/pause" (interactive) (emms-pause)))
+            (define-key map (kbd "C-x p p") '(lambda () "play previous track in playlist" (interactive) (emms-previous)))
+            (define-key map (kbd "C-x p n") '(lambda () "play next track in playlist" (interactive) (emms-next)))
+            (define-key map (kbd "C-x p r") '(lambda () "play previous track in playlist" (interactive) (org-music-play-random-song)))
+            (define-key map (kbd "C-x p R") '(lambda () "play next track in playlist" (interactive) (org-music-play-random-songs)))
             map)
 
   ;; define music speed commands
@@ -424,8 +424,8 @@ Read, write path on Linux. Write path on Android relative to Termux root")
     "Use speed commands if at cursor at beginning of an org-heading line"
     (when (and (bolp) (looking-at org-outline-regexp))
       (cdr (assoc keys
-                  '(("o" . (lambda () "play song at point" (org-music--play-song-at-point)))
-                    ("e" . (lambda () "enqueue song at point" (org-music--enqueue-song-at-point)))
+                  '(("o" . (lambda () "play song at point" (org-music-play-song-at-point)))
+                    ("e" . (lambda () "enqueue song at point" (org-music-enqueue-song-at-point)))
                     ("s" . (lambda () "play/pause" (message "toggle play/pause") (emms-pause)))
                     ("d" . (lambda () "play next track in playlist" (emms-previous)))
                     ("f" . (lambda () "play previous track in playlist" (emms-next))))))))
