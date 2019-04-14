@@ -1,6 +1,6 @@
 Store and play music from a simple org-mode file
 
-Zero (dev) effort syncing, versioning, tagging, sharing, semantic, full-text search and more straight out of the box.
+Zero (dev) effort syncing, versioning, tagging, sharing, semantic search, dynamic playlists and more straight out of the box.
 
 * How you ask ?
   - It's plain text so you get versioning, syncing, full-text search with your tool of choice out of the box
@@ -15,15 +15,17 @@ Zero (dev) effort syncing, versioning, tagging, sharing, semantic, full-text sea
   - Carry or sync your music collection everywhere. It's a text file after all
 
 * Where's the actual music ?
-  The org file is just metadata about your media collection. Org-music uses the org entry's metadata to stream music from youtube by default.
-  The user can, if needed, explicitly specify the data source and query to search and stream music/
+  The org file is just metadata about your media collection. Org-music maintains a cache directory where the local media files reside.
+  If the song is not available in the cache directory it downloads music from Youtube by default.
+  The user can also explicitly specify the data source and query to search and stream music.
   Currently Nextcloud and local storage are supported as data sources. It can be easily extended to work with other data sources.
 
 * Why was this tool created ?
-  I was sick of the ad-hoc, ephemerality of my music collection. I was in love with the simple, sturdiness of emacs/org.
-  Who wants to lose playlists and songs, pay the non-fun upkeep costs of organizing your music collection when you can do much better in plaintext with emacs + org.
+  I was sick of the ad-hoc, ephemerality of my music collection. I was in love with the simple, sturdiness of plain-text, emacs and org.
+  Who wants to lose playlists and songs, discover the latest in clunky interfaces when you can do much better in plaintext with emacs and org.
 
 * When was this tool created ?
-  Org-music has been non-continuos development (and use) for way longer than I'd care to admit (or remember).
+  Org-music has been in non-continuos development (and use) for way longer than I'd care to admit (or remember).
+
   It started of as a soft-linked ghost replica of my then music library.
-  I'd click the file, that'd call a shell script, that'd search on duckduckgo for a youtube url for the clicked filename, that vlc would then stream from youtube!
+  I'd click the file, that'd call a shell script, that'd search on Duckduckgo for a Youtube url of the clicked filename, that VLC would then stream from Youtube!

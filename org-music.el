@@ -419,7 +419,7 @@ Read, write path on Linux. Write path on Android relative to Termux root"
 ;; Configure Org-Music Mode
 (define-minor-mode org-music-mode
   "Play music from org"
-  :lighter " Org-Music"
+  :lighter " 𝄗𝄢"
   :keymap (let ((map (make-sparse-keymap)))
             (define-key map (kbd "C-x p o") 'org-music-play-list)
             (define-key map (kbd "C-x p e") 'org-music-enqueue-list)
