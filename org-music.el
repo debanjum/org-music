@@ -50,24 +50,36 @@
 
 ;; Org Music Library Media Control
 ;; -------------------------------
-(defcustom org-music-files '("~/Notes/Music.org")
-  "Music org file location.")
+(defcustom org-music-file "~/Notes/Music.org"
+  "Music org file location."
+  :group 'org-music
+  :type '(file :must-match t))
 
 (defcustom org-music-media-directory "~/Music/OrgMusic/"
   "Media cache location.
-Read, write path on Linux. Write path on Android relative to Termux root")
+Read, write path on Linux. Write path on Android relative to Termux root"
+  :group 'org-music
+  :type 'directory)
 
 (defcustom org-music-android-media-directory "file:///storage/emulated/0/Music/OrgMusic/"
-  "Media cache location on android. Used to retrieve songs, playlists on android.")
-
-(defcustom org-music-cache-size 30
-  "Media cache size.")
-
-(defcustom org-music-cache-song-format "m4a"
-  "Format to store songs in cache. See youtube-dl for available formats.")
+  "Media cache location on android. Used to retrieve songs, playlists on android."
+  :group 'org-music
+  :type 'string)
 
 (defcustom org-music-next-cloud-script "~/Scripts/bin/nextcloud.py"
-  "Location of Nextcloud script. Used to get nextcloud url of media.")
+  "Location of Nextcloud script. Used to get nextcloud url of media."
+  :group 'org-music
+  :type '(file :must-match t))
+
+(defcustom org-music-cache-size 30
+  "Media cache size."
+  :group 'org-music
+  :type 'integer)
+
+(defcustom org-music-cache-song-format "m4a"
+  "Format to store songs in cache. See youtube-dl for available formats."
+  :group 'org-music
+  :type 'string)
 
 (defvar org-music-last-playlist-filter nil
   "Last org filter used to create playlist.")
@@ -171,7 +183,7 @@ Read, write path on Linux. Write path on Android relative to Termux root")
 (defun org-music-jump-to-random-song (&optional match)
   "Jump to a random song satisfying 'MATCH' in the music library."
   (interactive)
-  (let ((org-randomnote-candidates org-music-files)
+  (let ((org-randomnote-candidates (list org-music-file))
         (song-match (concat (or match org-music-last-playlist-filter "") "+TYPE=\"song\"")))
     (setq org-music-last-playlist-filter match)
     (org-randomnote song-match)))
@@ -245,7 +257,7 @@ Read, write path on Linux. Write path on Android relative to Termux root")
   (interactive)
   (let ((songs (org-music--get-org-headings)))
     (apply #'org-music--play-cached-song (pop songs))
-    (org-music--enqueue-list songs)))
+    (org-music-enqueue-list songs)))
 
 ;; Control Music Player on Android via Termux
 ;; ------------------------------------------
@@ -339,26 +351,25 @@ Read, write path on Linux. Write path on Android relative to Termux root")
        ;; if file doesn't exist, trim cache and download file
       (if (not (file-exists-p song-file-location))
           (progn
-            (org-music--trim-cache)
+            (org-music--trim-cache os)
             (org-music--get-song song-name song-file-location)))
       ;; return song uri based on operating system
       (if (equal os "android")
           (format "%s%s.%s" org-music-android-media-directory song-name org-music-cache-song-format)
         song-file-location))))
 
-(defun org-music--trim-cache ()
-  "Trim media cache if larger than cache-size."
+(defun org-music--trim-cache (&optional os)
+  "Trim media cache if larger than cache-size. Handle different file return ordering based on OS."
   (interactive)
-  (let* ((sorted-files
-         (reverse
-         (sort
-          (directory-files (expand-file-name org-music-media-directory) t directory-files-no-dot-files-regexp)
-          'file-newer-than-file-p)))
-         (excess-count (- (cl-list-length sorted-files) org-music-cache-size)))
-    (if (> excess-count 0)
-        (progn
-          (message "trim music cache of: %s" (last sorted-files excess-count))
-          (mapcar 'delete-file (last sorted-files excess-count))))))
+  (let* ((pre-sorted-files
+          (sort
+           (directory-files (expand-file-name org-music-media-directory) t directory-files-no-dot-files-regexp)
+           'file-newer-than-file-p))
+         (sorted-files (if (equal os "android")
+                           (reverse pre-sorted-files)
+                         pre-sorted-files)))
+    (message "trim music cache of: %s" (butlast sorted-files org-music-cache-size))
+    (mapcar 'delete-file (butlast sorted-files org-music-cache-size))))
 
 ;; Org Music Library Metadata Enhancement Methods
 ;; ----------------------------------------------
