@@ -1,14 +1,30 @@
 ;;; org-music.el --- Store and play music from a simple org-mode file
 
-;; Copyright (C) 2019 Free Software Foundation, Inc.
-
+;; Copyright (C) 2017-2019 Free Software Foundation, Inc.
 
 ;; Author: Debanjum S. Solanky <debanjum@gmail.com>
 ;; Version: 1.0
-;; Package-Requires: ((emms "1.0") (request "1.0"))
+;; Package-Version: 20190109.906
+;; Package-Requires: ((org "9.0") (emms "5.0") (request "1.0"))
 ;; Keywords: hypermedia, multimedia, outlines, music, org-mode
 ;; URL: http://gitlab.com/debanjum/org-music
 
+;; This file is NOT part of GNU Emacs.
+
+;;; License:
+
+;; This program is free software; you can redistribute it and/or
+;; modify it under the terms of the GNU General Public License
+;; as published by the Free Software Foundation; either version 3
+;; of the License, or (at your option) any later version.
+
+;; This program is distributed in the hope that it will be useful,
+;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;; GNU General Public License for more details.
+
+;; You should have received a copy of the GNU General Public License
+;; along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -17,7 +33,10 @@
 ;; sharing, semantic, full text search and more straight out of the
 ;; box. It's plain-text after all!
 
+;;; Code:
+
 (require 'shell)
+(require 'request)
 (require 'org)
 
 ;; Org Music Library Media Control
@@ -25,30 +44,31 @@
 (defvar org-music-files '("~/Notes/Music.org"))
 
 (defvar org-music-media-directory "~/Music/OrgMusic/"
-  "Location where media is cached")
+  "Media cache location. Read, write path on Linux. Write path on Android relative to Termux root")
 
 (defvar org-music-android-media-directory "file:///storage/emulated/0/Music/OrgMusic/"
-  "Location where media is cached on android")
+  "Media cache location on android. Used to retrieve songs, playlists on android.")
 
 (defvar org-music-cache-size 30
-  "Media cache size")
+  "Media cache size.")
 
 (defvar org-music-cache-song-format "m4a"
-  "Format to store songs in cache")
+  "Format to store songs in cache. See youtube-dl for available formats.")
 
 (defvar org-music-last-playlist-filter nil
-  "Last org filter used to create playlist")
+  "Last org filter used to create playlist.")
 
 (defvar org-music-next-cloud-script "~/Scripts/bin/nextcloud.py"
-  "Nextcloud script location. Gets song's nextcloud stream url")
+  "Location of Nextcloud script. Used to get nextcloud url of media.")
 
 (defun flatten (l)
+  "Flatten recursive list L."
   (cond ((null l) nil)
    ((atom l) (list l))
    (t (loop for a in l appending (flatten a)))))
 
 (defun get-org-headings ()
-  "extract song headings from active/narrowed/sparse-tree region of org buffer"
+  "Extract song headings from active/narrowed/sparse-tree region of org buffer."
   (interactive)
   (if (use-region-p)
       (narrow-to-region (point) (mark)))
@@ -64,7 +84,7 @@
   headings)
 
 (defun log-song-state (state)
-  "add current state start time to logbook of song"
+  "Add STATE: `org-current-effective-time` to song's LOGBOOK."
   (interactive)
   (let ((opos (point))
         (log-spos (org-log-beginning t))
@@ -77,7 +97,7 @@
     (goto-char opos)))
 
 (defun get-search-query ()
-  "use value of QUERY property if it exists to search provider, else use song headings"
+  "Retrieve QUERY property values or headings of org entries in active/narrowed/sparse-tree region of org buffer."
   (if (use-region-p)
       (narrow-to-region (point) (mark)))
   (setq queries
@@ -88,13 +108,13 @@
   (flatten queries))
 
 (defun search-song-at-point ()
-  "use value of QUERY property if it exists to search provider, else use song headings"
+  "Retrieve QUERY property value or heading of song at point."
   (interactive)
   (cond ((org-entry-get nil "QUERY"))
         ((nth 4 (org-heading-components)))))
 
 (defun get-song-source ()
-  "use value of CATEGORY property if it exists, else default to youtube. This is the source of the song"
+  "Retrieve data source from CATEGORY property value of song's org-entry if it exists. Defaults to Youtube."
   (interactive)
   (cond ((org-entry-get nil "CATEGORY"))
         ("youtube")))
@@ -105,27 +125,32 @@
 ;; Control MPV on Linux via Shell
 ;; ------------------------------
 (defun mpv-start ()
+  "Start mpv player."
   (shell-command
    (format "mpv --idle --input-ipc-server=/tmp/mpvsocket --ytdl-format=bestaudio &")))
 
 (defun mpv-running? ()
+  "Check if mpv is running."
   (member "mpv" (split-string (shell-command-to-string "playerctl -l"))))
 
 (defun get-media-url (search-query source)
+  "Retrieve media url from SOURCE based on SEARCH-QUERY."
   (interactive)
   (if (equal "nextcloud" source)
       (get-nextcloud-url search-query)
     (get-youtube-url search-query)))
 
 (defun emms-enqueue (search-query &optional source)
+  "Enqueue media retrieved from SOURCE based on SEARCH-QUERY."
   (emms-add-url (get-media-url search-query source)))
 
 (defun emms-play (search-query &optional source)
+  "Play media retrieved from SOURCE based on SEARCH-QUERY."
   (emms-play-url (get-media-url search-query source)))
 
 (defun mpv-enqueue (search-query)
-  "enqueue in mpv first youtube result based on search-query"
-  (when (not (mpv-running?))
+  "Enqueue in mpv the top result for SEARCH-QUERY on Youtube."
+  (when (not (mpv-running-p))
       (mpv-start))
   (shell-command-to-string
    (format
@@ -133,7 +158,7 @@
     search-query)))
 
 (defun jump-to-random-song (&optional match)
-  "jump to a random song satisfying 'match' in the music library"
+  "Jump to a random song satisfying 'MATCH' in the music library."
   (interactive)
   (let ((org-randomnote-candidates org-music-files)
         (song-match (concat (or match org-music-last-playlist-filter "") "+TYPE=\"song\"")))
@@ -141,14 +166,14 @@
     (org-randomnote song-match)))
 
 (defun play-random-song (&optional match)
-  "play random song satisfying 'match' in the music library"
+  "Play random song satisfying 'MATCH' in the music library."
   (interactive)
   (jump-to-random-song (or match org-music-last-playlist-filter nil))
   (play-song-at-point)
   (bury-buffer))
 
 (defun play-random-songs (&optional match)
-  "Play random songs satisfying 'match' in the music library"
+  "Play random songs satisfying 'MATCH' in the music library."
   (interactive)
   (let ((playlist-filter (or match org-music-last-playlist-filter)))
     (play-random-song playlist-filter)
@@ -156,20 +181,22 @@
     (add-hook 'emms-player-stopped-hook #'(lambda () (remove-hook 'emms-player-finished-hook 'play-random-songs)))))
 
 (defun play-highlighted (start end)
+  "Play highlighted text between START and END."
   (interactive "r")
   (if (use-region-p)
       (let ((regionp (buffer-substring-no-properties start end)))
         (emms-play-url (get-media-url regionp "youtube")))))
 
 (defun enqueue-highlighted (start end)
+  "Enqueue highlighted text between START and END."
   (interactive "r")
   (if (use-region-p)
       (let ((regionp (buffer-substring-no-properties start end)))
         (emms-add-url (get-media-url regionp "youtube")))))
 
 (defun mpv-play (search-query)
-  "enqueue in mpv first youtube result based on search-query"
-  (when (not (mpv-running?))
+  "Enqueue in mpv the top result for SEARCH-QUERY on Youtube."
+  (when (not (mpv-running-p))
       (mpv-start))
   (shell-command-to-string
    (format
@@ -177,7 +204,7 @@
     search-query)))
 
 (defun enqueue-song-at-point ()
-  "enqueue song at point"
+  "Enqueue song at point."
   (let ((song-name (format "%s" (nth 4 (org-heading-components))))
         (query (search-song-at-point))
         (source (get-song-source)))
@@ -187,7 +214,7 @@
     (log-song-state "ENQUEUED")))
 
 (defun play-song-at-point ()
-  "open song at point"
+  "Open song at point."
   (let ((song-name (format "%s" (nth 4 (org-heading-components))))
         (query (search-song-at-point))
         (source (get-song-source)))
@@ -197,7 +224,7 @@
     (log-song-state "ENQUEUED")))
 
 (defun enqueue-list (&optional songs-list)
-  "enqueue songs in active-region/sparse-tree/buffer"
+  "Enqueue SONGS-LIST in active/narrowed/sparse-tree region of org buffer."
   (interactive)
   (let ((songs (or songs-list (get-org-headings))))
     (mapcar #'(lambda (s)
@@ -205,7 +232,7 @@
             songs)))
 
 (defun play-list ()
-  "play songs in active-region/sparse-tree/buffer"
+  "Play songs in active/narrowed/sparse-tree region of org buffer."
   (interactive)
   (let ((songs (get-org-headings)))
     (apply #'play-cached-song (pop songs))
@@ -214,7 +241,7 @@
 ;; Control Music Player on Android via Termux
 ;; ------------------------------------------
 (defun play-agenda (search-string)
-  "play org-agenda filtered playlist"
+  "Play `org-agenda' filtered playlist based on SEARCH-STRING."
   ;; filter songs in music library using search terms
   (execute-kbd-macro (kbd (format "C-c a p %s SPC +{:TYPE:\\s-+song}" (replace-regexp-in-string " " " SPC " search-string))))
   ;; write filtered playlist to org file and open
@@ -224,12 +251,12 @@
   (kill-buffer ".playlist.org"))
 
 (defun play-list-on-android ()
-  "create playlist from org songs and share via termux to android music player"
+  "Create playlist from org song headings and share via Termux to android music player."
   (create-m3u-playlist (get-org-headings))
   (android-share-playlist))
 
 (defun create-m3u-playlist (song-entries)
-  "create m3u playlist from org songs"
+  "Create m3u playlist from SONG-ENTRIES."
   (write-playlist-to-file
    (mapconcat
     #'(lambda (song)
@@ -240,37 +267,39 @@
     "\n")))
 
 (defun write-playlist-to-file (m3u-playlist)
+  "Write M3U-PLAYLIST to file."
   (let ((playlist-file (format "%s%s" org-music-media-directory "orgmusic.m3u")))
     (write-region (format "#EXTM3U\n%s" m3u-playlist) nil playlist-file)))
 
 (defun android-share-playlist ()
-  "share playlist via termux to an android music player"
+  "Share playlist via termux to an android music player."
   (let ((playlist-file (format "%s%s" org-music-android-media-directory "orgmusic.m3u")))
   (shell-command-to-string (format "termux-open %S" playlist-file))))
 
 (defun get-youtube-url (search-query)
+  "Retrieve URL of the top result for SEARCH-QUERY on Youtube."
   (format "https://youtube.com/watch?v=%s" (get-youtube-id-of-song (list search-query))))
 
 (defun get-youtube-id-of-song (song-entry)
-  "retrieve youtube-id of top result on youtube for org song heading via youtube-dl"
+  "Retrieve id of top result for SONG-ENTRY on Youtube."
   (replace-regexp-in-string
    "\n$" ""
    (shell-command-to-string
     (format "youtube-dl --get-id ytsearch:\"%s\"" (car song-entry)))))
 
 (defun android-share-youtube-song (song-id)
-  "share constructed youtube-url via termux to play on android youtube player"
+  "Share constructed youtube-url based on SONG-ID via termux to play on android youtube player."
   (shell-command-to-string (format "termux-open-url \"https://youtube.com/watch?v=%s\"" song-id)))
 
 (defun get-nextcloud-url (song-entry)
-  "retrieve song url of top result on nextcloud for org song heading"
+  "Retrieve URL of top result on Nextcloud for SONG-ENTRY."
   (replace-regexp-in-string
    "\n$" ""
    (shell-command-to-string
     (format "%s \"get_url\" \"%s\"" org-music-next-cloud-script (car song-entry)))))
 
 (defun get-song (name file-location)
-  "download org song from youtube via youtube-dl"
+  "Download NAME to FILE-LOCATION from Youtube."
   (interactive)
   (let ((download-command
          (format "youtube-dl -f %s --quiet ytsearch:%S -o %S" org-music-cache-song-format name file-location)))
@@ -278,7 +307,7 @@
     (shell-command-to-string download-command)))
 
 (defun play-cached-song (song-entry &optional source enqueue)
-  "cache and play song"
+  "Cache SONG-ENTRY from SOURCE. Enqueue song if ENQUEUE true else play."
   (interactive)
   (let ((uri-location (cache-song song-entry source)))
     (message "%s" uri-location source)
@@ -291,7 +320,7 @@
       (emms-play-file uri-location)))))
 
 (defun cache-song (song-name &optional source os)
-  "If song not available in local, download"
+  "If SONG-NAME not available in local, download from SOURCE. Return local song URI based on OS."
   (interactive)
   (let ((song-file-location
          (format "%s%s.%s" org-music-media-directory song-name org-music-cache-song-format)))
@@ -309,7 +338,7 @@
         song-file-location))))
 
 (defun trim-cache ()
-  "trim media cache if larger than cache-size"
+  "Trim media cache if larger than cache-size."
   (interactive)
   (let ((sorted-files
          (reverse
@@ -325,7 +354,7 @@
 ;; Org Music Library Metadata Enhancement Methods
 ;; ----------------------------------------------
 (defun append-outline-to-song-entries ()
-  "add outline parents of all visible song headings to their org entries"
+  "Add outline parents of all visible song headings to their org entries."
   (interactive)
   (while (not (org-entry-get nil "SEQ"))
     (org-next-visible-heading 1)
@@ -334,7 +363,7 @@
           (insert-outline-of-entry outline)))))
 
 (defun append-outline-to-song-query-property ()
-  "add outline parents of all visible song headings to their query property"
+  "Add outline parents of all visible song headings to their query property."
   (interactive)
   (while (not (org-entry-get nil "SEQ"))
     (org-next-visible-heading 1)
@@ -343,7 +372,7 @@
           (org-entry-put nil "QUERY" outline)))))
 
 (defun remove-colon-from-org-headings ()
-  "remove colon from non song org headings"
+  "Remove colon from non song org headings."
   (interactive)
   (while (or (not (org-entry-get nil "SEQ"))
              (outline-invisible=p))
@@ -356,7 +385,7 @@
                 (delete-backward-char 1)))))))
 
 (defun insert-outline-of-entry (outline)
-  "add outline parents of song heading at point to its org entries"
+  "Add OUTLINE parents of song heading at point to its org entry."
   (progn
     (org-next-visible-heading 1)
     (insert "\n")
@@ -398,3 +427,5 @@
   (add-hook 'org-speed-command-hook 'org-speed-music))
 
 (provide 'org-music)
+
+;;; org-music.el ends here
