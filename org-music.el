@@ -1,11 +1,10 @@
 ;;; org-music.el --- Store and play music from a simple org-mode file
 
-;; Copyright (C) 2017-2019 Free Software Foundation, Inc.
+;; Copyright (C) 2017-2019 Debanjum Singh Solanky
 
-;; Author: Debanjum S. Solanky <debanjum@gmail.com>
+;; Author: Debanjum Singh Solanky <debanjum@gmail.com>
 ;; Version: 1.0
-;; Package-Version: 20190109.906
-;; Package-Requires: ((org "9.0") (emms "5.0") (request "1.0"))
+;; Package-Requires: ((org "9.0") (emms "5.0") (request "1.0") (org-randomnote "0.1.0"))
 ;; Keywords: hypermedia, multimedia, outlines, music, org-mode
 ;; URL: http://gitlab.com/debanjum/org-music
 
@@ -35,53 +34,64 @@
 
 ;;; Code:
 
+
 (require 'shell)
-(require 'request)
+(require 'emms)
 (require 'org)
+(require 'org-randomnote)
+
+(declare-function emms-add-url "ext:emms")
+(declare-function emms-play-url "ext:emms")
+(declare-function emms-add-file "ext:emms")
+(declare-function emms-play-file "ext:emms")
+(declare-function org-randomnote "ext:org-randomnote")
+(declare-function org-agenda-write "ext:org-agenda")
+
 
 ;; Org Music Library Media Control
 ;; -------------------------------
-(defvar org-music-files '("~/Notes/Music.org"))
+(defcustom org-music-files '("~/Notes/Music.org"))
 
-(defvar org-music-media-directory "~/Music/OrgMusic/"
-  "Media cache location. Read, write path on Linux. Write path on Android relative to Termux root")
+(defcustom org-music-media-directory "~/Music/OrgMusic/"
+  "Media cache location.
+Read, write path on Linux. Write path on Android relative to Termux root")
 
-(defvar org-music-android-media-directory "file:///storage/emulated/0/Music/OrgMusic/"
+(defcustom org-music-android-media-directory "file:///storage/emulated/0/Music/OrgMusic/"
   "Media cache location on android. Used to retrieve songs, playlists on android.")
 
-(defvar org-music-cache-size 30
+(defcustom org-music-cache-size 30
   "Media cache size.")
 
-(defvar org-music-cache-song-format "m4a"
+(defcustom org-music-cache-song-format "m4a"
   "Format to store songs in cache. See youtube-dl for available formats.")
+
+(defcustom org-music-next-cloud-script "~/Scripts/bin/nextcloud.py"
+  "Location of Nextcloud script. Used to get nextcloud url of media.")
 
 (defvar org-music-last-playlist-filter nil
   "Last org filter used to create playlist.")
-
-(defvar org-music-next-cloud-script "~/Scripts/bin/nextcloud.py"
-  "Location of Nextcloud script. Used to get nextcloud url of media.")
 
 (defun flatten (l)
   "Flatten recursive list L."
   (cond ((null l) nil)
    ((atom l) (list l))
-   (t (loop for a in l appending (flatten a)))))
+   (t (cl-loop for a in l appending (flatten a)))))
 
 (defun get-org-headings ()
   "Extract song headings from active/narrowed/sparse-tree region of org buffer."
   (interactive)
   (if (use-region-p)
       (narrow-to-region (point) (mark)))
-  (setq headings
+  (let ((headings
         (org-element-map (org-element-parse-buffer "object" t) 'headline
           (lambda (hs)
             (when (equal "song" (org-element-property :TYPE hs))
               (if (not (null (org-element-property :QUERY hs)))
                   (list (org-element-property :QUERY hs) (org-element-property :CATEGORY hs))
-                (list (org-element-property :raw-value hs) (org-element-property :CATEGORY hs)))))))
-  (message "%s" headings)
-  (widen)
-  headings)
+                (list (org-element-property :raw-value hs) (org-element-property :CATEGORY hs))))))))
+        (message "%s" headings)
+        (widen)
+        headings))
 
 (defun log-song-state (state)
   "Add STATE: `org-current-effective-time` to song's LOGBOOK."
@@ -92,7 +102,7 @@
                    (org-time-stamp-format 'long 'inactive)(org-current-effective-time))))
     (goto-char log-spos)
     (insert state ": " log-time "\n")
-    (previous-line)
+    (forward-line)
     (org-indent-region (line-beginning-position) (line-end-position))
     (goto-char opos)))
 
@@ -100,12 +110,12 @@
   "Retrieve QUERY property values or headings of org entries in active/narrowed/sparse-tree region of org buffer."
   (if (use-region-p)
       (narrow-to-region (point) (mark)))
-  (setq queries
+  (let ((queries
         (org-element-map (org-element-parse-buffer "object" t) 'headline
           (lambda (hs) (when (equal "song" (org-element-property :TYPE hs))
-                         (org-element-property :QUERY hs)))))
-  (widen)
-  (flatten queries))
+                         (org-element-property :QUERY hs))))))
+    (widen)
+    (flatten queries)))
 
 (defun search-song-at-point ()
   "Retrieve QUERY property value or heading of song at point."
@@ -129,7 +139,7 @@
   (shell-command
    (format "mpv --idle --input-ipc-server=/tmp/mpvsocket --ytdl-format=bestaudio &")))
 
-(defun mpv-running? ()
+(defun mpv-running-p ()
   "Check if mpv is running."
   (member "mpv" (split-string (shell-command-to-string "playerctl -l"))))
 
@@ -310,7 +320,7 @@
   "Cache SONG-ENTRY from SOURCE. Enqueue song if ENQUEUE true else play."
   (interactive)
   (let ((uri-location (cache-song song-entry source)))
-    (message "%s" uri-location source)
+    (message "location: %s, source: %s" uri-location source)
     (if (equal source "nextcloud")
         (if enqueue
             (emms-add-url uri-location)
@@ -340,16 +350,16 @@
 (defun trim-cache ()
   "Trim media cache if larger than cache-size."
   (interactive)
-  (let ((sorted-files
+  (let* ((sorted-files
          (reverse
          (sort
           (directory-files (expand-file-name org-music-media-directory) t directory-files-no-dot-files-regexp)
-          'file-newer-than-file-p))))
-    (setq excess-count (- (list-length sorted-files) org-music-cache-size))
+          'file-newer-than-file-p)))
+         (excess-count (- (cl-list-length sorted-files) org-music-cache-size)))
     (if (> excess-count 0)
         (progn
-              (message "trim music cache of: %s" (last-sorted-files excess-count))
-              (mapcar 'delete-file (last sorted-files excess-count))))))
+          (message "trim music cache of: %s" (last sorted-files excess-count))
+          (mapcar 'delete-file (last sorted-files excess-count))))))
 
 ;; Org Music Library Metadata Enhancement Methods
 ;; ----------------------------------------------
@@ -375,21 +385,21 @@
   "Remove colon from non song org headings."
   (interactive)
   (while (or (not (org-entry-get nil "SEQ"))
-             (outline-invisible=p))
+             (outline-invisible-p))
     (org-next-visible-heading 1)
     (let ((outline (org-display-outline-path nil t " - " t)))
       (if (not (equal "song" (org-entry-get nil "TYPE")))
           (progn
             (end-of-line)
             (if (equal ":" (string (char-before)))
-                (delete-backward-char 1)))))))
+                (delete-char -1)))))))
 
 (defun insert-outline-of-entry (outline)
   "Add OUTLINE parents of song heading at point to its org entry."
   (progn
     (org-next-visible-heading 1)
     (insert "\n")
-    (previous-line)
+    (forward-line -1)
     (insert outline)
     (beginning-of-line)
     (org-cycle)
@@ -411,20 +421,20 @@
             map)
 
   ;; define music speed commands
-  (setq org-speed-commands-music
-        '(("o" . (lambda () "play song at point" (play-song-at-point)))
-          ("e" . (lambda () "enqueue song at point" (enqueue-song-at-point)))
-          ("s" . (lambda () "play/pause" (message "toggle play/pause") (emms-pause)))
-          ("d" . (lambda () "play next track in playlist" (emms-previous)))
-          ("f" . (lambda () "play previous track in playlist" (emms-next)))))
+  (let ((org-speed-commands-music
+         '(("o" . (lambda () "play song at point" (play-song-at-point)))
+           ("e" . (lambda () "enqueue song at point" (enqueue-song-at-point)))
+           ("s" . (lambda () "play/pause" (message "toggle play/pause") (emms-pause)))
+           ("d" . (lambda () "play next track in playlist" (emms-previous)))
+           ("f" . (lambda () "play previous track in playlist" (emms-next))))))
+        
+    (defun org-speed-music (keys)
+      "Use speed commands if at cursor at beginning of an org-heading line"
+      (when (and (bolp) (looking-at org-outline-regexp))
+        (cdr (assoc keys org-speed-commands-music))))
 
-  (defun org-speed-music (keys)
-    "Use speed commands if at cursor at beginning of an org-heading line"
-    (when (and (bolp) (looking-at org-outline-regexp))
-      (cdr (assoc keys org-speed-commands-music))))
-
-  ;; add to org-speed-command-hook
-  (add-hook 'org-speed-command-hook 'org-speed-music))
+    ;; add to org-speed-command-hook
+    (add-hook 'org-speed-command-hook 'org-speed-music)))
 
 (provide 'org-music)
 
