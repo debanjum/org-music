@@ -1,3 +1,22 @@
+;;; org-music.el --- Store and play music from a simple org-mode file
+
+;; Copyright (C) 2019 Free Software Foundation, Inc.
+
+
+;; Author: Debanjum S. Solanky <debanjum@gmail.com>
+;; Version: 1.0
+;; Package-Requires: ((emms "1.0") (request "1.0"))
+;; Keywords: hypermedia, multimedia, outlines, music, org-mode
+;; URL: http://gitlab.com/debanjum/org-music
+
+
+;;; Commentary:
+
+;; This package provides a minor mode to turn an org file into an
+;; interactive music library. Get syncing, versioning, tagging,
+;; sharing, semantic, full text search and more straight out of the
+;; box. It's plain-text after all!
+
 (require 'shell)
 (require 'org)
 
@@ -347,6 +366,7 @@
     (org-cycle)
     (org-previous-visible-heading 1)))
 
+;;;###autoload
 ;; Configure Org-Music Mode
 (define-minor-mode org-music-mode
   "Play music from org"
