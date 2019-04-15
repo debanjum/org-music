@@ -39,6 +39,8 @@
 (require 'org)
 (require 'emms)
 (require 'org-randomnote)
+(require 'url)
+(require 'json)
 
 (declare-function emms-add-url "ext:emms")
 (declare-function emms-play-url "ext:emms")
@@ -46,7 +48,6 @@
 (declare-function emms-play-file "ext:emms")
 (declare-function org-randomnote "ext:org-randomnote")
 (declare-function org-agenda-write "ext:org-agenda")
-
 
 ;; Org Music Library Media Control
 ;; -------------------------------
@@ -78,6 +79,11 @@ Read, write path on Linux. Write path on Android relative to Termux root"
 
 (defcustom org-music-cache-song-format "m4a"
   "Format to store songs in cache. See youtube-dl for available formats."
+  :group 'org-music
+  :type 'string)
+
+(defcustom org-music-samvayati-root-url "http://localhost:5000"
+  "Location of samvayati, the contextual awareness server."
   :group 'org-music
   :type 'string)
 
@@ -259,6 +265,26 @@ Read, write path on Linux. Write path on Android relative to Termux root"
     (apply #'org-music--play-cached-song (pop songs))
     (org-music-enqueue-list songs)))
 
+(defun fetch-json (url)
+  "Fetch json from  URL."
+  (with-current-buffer (url-retrieve-synchronously url)
+    (goto-char (1+ url-http-end-of-headers))
+    (json-read)))
+
+(defun fetch-samvayati-moods ()
+  "Fetch contextual moods from samvayati."
+  (let* ((json-object-type 'plist)
+         (json-array-type 'list)
+         (json-key-type 'string))
+    (nth 0 (cdadar (fetch-json
+                    (format "%s/music?type=mood" org-music-samvayati-root-url))))))
+
+(defun org-music-play-contextual-music ()
+  "Play contextually relevant songs."
+  (interactive)
+  (let ((moods (fetch-samvayati-moods)))
+    (message "%s" moods)))
+         
 ;; Control Music Player on Android via Termux
 ;; ------------------------------------------
 (defun org-music-play-agenda-on-android (search-string)
