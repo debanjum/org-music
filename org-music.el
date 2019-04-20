@@ -196,13 +196,23 @@ Read, write path on Linux. Write path on Android relative to Termux root"
     (setq org-music-last-playlist-filter match)
     (org-randomnote song-match)))
 
+(defun get-random-songs (tags-match playlist-length)
+  "Get random TAGS-MATCH satisfying songs numbering PLAYLIST-LENGTH in ORG-MUSIC-FILE."
+  (find-file org-music-file)
+  (car
+   (last
+    (shuffle
+     (org-scan-tags
+      #'(lambda () (org-music--get-song-properties-of-entry (org-element-at-point)))
+      (cdr (org-make-tags-matcher (or tags-match "TYPE=\"song\""))) nil))
+    playlist-length)))
+
 (defun org-music-play-random-song (&optional match enqueue)
   "Play (or ENQUEUE) random song satisfying 'MATCH' in the music library."
   (interactive)
-  (org-music-jump-to-random-song (or match org-music-last-playlist-filter nil))
-  (if enqueue
-      (org-music-enqueue-song-at-point)
-    (org-music-play-song-at-point))
+  (let ((song (get-random-songs (or match org-music-last-playlist-filter nil) 1))
+        (enqueue (or enqueue nil)))
+    (apply #'org-music--play-cached-song (append song (list enqueue))))
   (bury-buffer))
 
 (defun org-music-play-random-songs (&optional match)
@@ -297,13 +307,15 @@ shuffling is done in place."
     (nth 0 (cdadar (fetch-json
                     (format "%s/music?type=mood" org-music-samvayati-root-url))))))
 
-(defun org-music-play-contextual-music ()
-  "Play a contextually relevant song."
+(defun org-music-play-contextual-music (&optional continuous)
+  "Play a contextually relevant songs. If CONTINUOUS play infinite contextual playlist."
   (interactive)
   (let* ((moods (fetch-samvayati-moods))
          (play-mood (car (shuffle moods))))
     (message "Playing: %s of Moods: %s" play-mood moods)
-    (org-music-play-random-song play-mood)))
+    (if continuous
+        (org-music-play-random-songs play-mood)
+      (org-music-play-random-song play-mood))))
 
 (defun org-music-contextual-playlist (playlist-length)
   "Create, play a contextually relevant playlist of PLAYLIST-LENGTH."
@@ -320,14 +332,8 @@ shuffling is done in place."
   "Get contextually relevant songs numbering PLAYLIST-LENGTH."
   (interactive)
   (let* ((moods (fetch-samvayati-moods))
-         (tags-match (format "TYPE=\"song\"%s" (car (shuffle moods))))
-         (song-entries '()))
-    (last
-     (shuffle
-      (org-scan-tags
-       #'(lambda () (org-music--get-song-properties-of-entry (org-element-at-point)))
-       (cdr (org-make-tags-matcher tags-match)) nil))
-     playlist-length)))
+         (tags-match (format "TYPE=\"song\"%s" (car (shuffle moods)))))
+    (get-random-songs tags-match playlist-length)))
 
 ;; Control Music Player on Android via Termux
 ;; ------------------------------------------
@@ -506,6 +512,8 @@ Stream if STREAM-P, Else Download and Play Cached."
             (define-key map (kbd "C-x p n") '(lambda () "play next track in playlist" (interactive) (emms-next)))
             (define-key map (kbd "C-x p r") '(lambda () "play previous track in playlist" (interactive) (org-music-play-random-song)))
             (define-key map (kbd "C-x p R") '(lambda () "play next track in playlist" (interactive) (org-music-play-random-songs)))
+            (define-key map (kbd "C-x p c") '(lambda () "play next track in playlist" (interactive) (org-music-play-contextual-music)))
+            (define-key map (kbd "C-x p C") '(lambda () "play next track in playlist" (interactive) (org-music-play-contextual-music t)))
             map)
 
   ;; define music speed commands
