@@ -265,6 +265,20 @@ Read, write path on Linux. Write path on Android relative to Termux root"
     (apply #'org-music--play-cached-song (pop songs))
     (org-music-enqueue-list songs)))
 
+(defun swap (LIST el1 el2)
+  "Swap LIST indices EL1 and EL2 in place."
+  (let ((tmp (elt LIST el1)))
+    (setf (elt LIST el1) (elt LIST el2))
+    (setf (elt LIST el2) tmp)))
+
+(defun shuffle (LIST)
+  "Shuffle the elements in LIST.
+shuffling is done in place."
+  (cl-loop for i in (reverse (number-sequence 1 (1- (length LIST))))
+           do (let ((j (random (+ i 1))))
+                (swap LIST i j)))
+  LIST)
+
 (defun fetch-json (url)
   "Fetch json from  URL."
   (with-current-buffer (url-retrieve-synchronously url)
@@ -282,10 +296,11 @@ Read, write path on Linux. Write path on Android relative to Termux root"
 (defun org-music-play-contextual-music ()
   "Play contextually relevant songs."
   (interactive)
-  (let ((moods (fetch-samvayati-moods)))
-    (message "Moods: %s" moods)
-    (org-music-play-random-song (car moods))))
-         
+  (let* ((moods (fetch-samvayati-moods))
+         (play-mood (car (shuffle moods))))
+    (message "Playing: %s of Moods: %s" play-mood moods)
+    (org-music-play-random-song play-mood)))
+
 ;; Control Music Player on Android via Termux
 ;; ------------------------------------------
 (defun org-music-play-agenda-on-android (search-string)
