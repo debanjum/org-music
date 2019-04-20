@@ -283,7 +283,8 @@ Read, write path on Linux. Write path on Android relative to Termux root"
   "Play contextually relevant songs."
   (interactive)
   (let ((moods (fetch-samvayati-moods)))
-    (message "%s" moods)))
+    (message "Moods: %s" moods)
+    (org-music-play-random-song (car moods))))
          
 ;; Control Music Player on Android via Termux
 ;; ------------------------------------------
