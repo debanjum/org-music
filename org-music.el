@@ -72,7 +72,7 @@ Read, write path on Linux. Write path on Android relative to Termux root"
   :group 'org-music
   :type '(file :must-match t))
 
-(defcustom org-music-cache-size 30
+(defcustom org-music-cache-size 100
   "Media cache size."
   :group 'org-music
   :type 'integer)
@@ -343,7 +343,7 @@ shuffling is done in place."
 
 (defun org-music-contextual-playlist-on-android ()
   "Create contextually relevant playlist from org song headings and share via Termux to android music player."
-  (org-music--create-m3u-playlist (org-music--get-contextual-songs 5))
+  (org-music--create-m3u-playlist (org-music--get-contextual-songs 5) t)
   (org-music--android-share-playlist))
 
 (defun org-music-play-list-on-android ()
@@ -351,14 +351,17 @@ shuffling is done in place."
   (org-music--create-m3u-playlist (org-music--get-org-headings))
   (org-music--android-share-playlist))
 
-(defun org-music--create-m3u-playlist (song-entries)
-  "Create m3u playlist from SONG-ENTRIES."
+(defun org-music--create-m3u-playlist (song-entries &optional stream-p)
+  "Create m3u playlist from SONG-ENTRIES.
+Stream if STREAM-P, Else Download and Play Cached."
   (org-music--write-playlist-to-file
    (mapconcat
     #'(lambda (song)
         (format "#EXTINF:,%s\n%s"
                 (car song)
-                (apply #'org-music--cache-song (append song (list "android")))))
+                (if stream-p
+                    (apply #'org-music--get-media-url song)
+                  (apply #'org-music--cache-song song))))
     song-entries
     "\n")))
 
