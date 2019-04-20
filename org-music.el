@@ -96,18 +96,20 @@ Read, write path on Linux. Write path on Android relative to Termux root"
    ((atom l) (list l))
    (t (cl-loop for a in l appending (org-music--flatten a)))))
 
+(defun org-music--get-song-properties-of-entry (entry)
+  "Extract CATEGORY and (QUERY property else title) of ENTRY."
+  (when (equal "song" (org-element-property :TYPE entry))
+    (if (not (null (org-element-property :QUERY entry)))
+        (list (org-element-property :QUERY entry) (org-element-property :CATEGORY entry))
+      (list (org-element-property :raw-value entry) (org-element-property :CATEGORY entry)))))
+
 (defun org-music--get-org-headings ()
   "Extract song headings from active/narrowed/sparse-tree region of org buffer."
   (interactive)
   (if (use-region-p)
       (narrow-to-region (point) (mark)))
   (let ((headings
-        (org-element-map (org-element-parse-buffer "object" t) 'headline
-          (lambda (hs)
-            (when (equal "song" (org-element-property :TYPE hs))
-              (if (not (null (org-element-property :QUERY hs)))
-                  (list (org-element-property :QUERY hs) (org-element-property :CATEGORY hs))
-                (list (org-element-property :raw-value hs) (org-element-property :CATEGORY hs))))))))
+        (org-element-map (org-element-parse-buffer "object" t) 'headline 'org-music--get-song-properties-of-entry)))
         (message "%s" headings)
         (widen)
         headings))
@@ -314,6 +316,19 @@ shuffling is done in place."
                   (message "Playing: %s of Moods: %s" play-mood moods)
                   (org-music-play-random-song play-mood t)))))
 
+(defun org-music--get-contextual-songs (playlist-length)
+  "Get contextually relevant songs numbering PLAYLIST-LENGTH."
+  (interactive)
+  (let* ((moods (fetch-samvayati-moods))
+        (song-entries '()))
+    (cl-loop for i in (number-sequence 1 playlist-length)
+             do (let* ((play-mood (car (shuffle moods))))
+                  (message "Playing: %s of Moods: %s" play-mood moods)
+                  (org-music-jump-to-random-song play-mood)
+                  (add-to-list 'song-entries
+                               (org-music--get-song-properties-of-entry (org-element-at-point)))))
+    song-entries))
+
 ;; Control Music Player on Android via Termux
 ;; ------------------------------------------
 (defun org-music-play-agenda-on-android (search-string)
@@ -325,6 +340,11 @@ shuffling is done in place."
   ;; get song-name from org playlist's headings, format it to enqueue and play in mpsyt, trigger mpsyt
   (org-music-play-list-on-android)
   (kill-buffer ".playlist.org"))
+
+(defun org-music-contextual-playlist-on-android ()
+  "Create contextually relevant playlist from org song headings and share via Termux to android music player."
+  (org-music--create-m3u-playlist (org-music--get-contextual-songs 5))
+  (org-music--android-share-playlist))
 
 (defun org-music-play-list-on-android ()
   "Create playlist from org song headings and share via Termux to android music player."
