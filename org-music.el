@@ -320,14 +320,14 @@ shuffling is done in place."
   "Get contextually relevant songs numbering PLAYLIST-LENGTH."
   (interactive)
   (let* ((moods (fetch-samvayati-moods))
-        (song-entries '()))
-    (cl-loop for i in (number-sequence 1 playlist-length)
-             do (let* ((play-mood (car (shuffle moods))))
-                  (message "Playing: %s of Moods: %s" play-mood moods)
-                  (org-music-jump-to-random-song play-mood)
-                  (add-to-list 'song-entries
-                               (org-music--get-song-properties-of-entry (org-element-at-point)))))
-    song-entries))
+         (tags-match (format "TYPE=\"song\"%s" (car (shuffle moods))))
+         (song-entries '()))
+    (last
+     (shuffle
+      (org-scan-tags
+       #'(lambda () (org-music--get-song-properties-of-entry (org-element-at-point)))
+       (cdr (org-make-tags-matcher tags-match)) nil))
+     playlist-length)))
 
 ;; Control Music Player on Android via Termux
 ;; ------------------------------------------
