@@ -194,11 +194,13 @@ Read, write path on Linux. Write path on Android relative to Termux root"
     (setq org-music-last-playlist-filter match)
     (org-randomnote song-match)))
 
-(defun org-music-play-random-song (&optional match)
-  "Play random song satisfying 'MATCH' in the music library."
+(defun org-music-play-random-song (&optional match enqueue)
+  "Play (or ENQUEUE) random song satisfying 'MATCH' in the music library."
   (interactive)
   (org-music-jump-to-random-song (or match org-music-last-playlist-filter nil))
-  (org-music-play-song-at-point)
+  (if enqueue
+      (org-music-enqueue-song-at-point)
+    (org-music-play-song-at-point))
   (bury-buffer))
 
 (defun org-music-play-random-songs (&optional match)
@@ -294,12 +296,23 @@ shuffling is done in place."
                     (format "%s/music?type=mood" org-music-samvayati-root-url))))))
 
 (defun org-music-play-contextual-music ()
-  "Play contextually relevant songs."
+  "Play a contextually relevant song."
   (interactive)
   (let* ((moods (fetch-samvayati-moods))
          (play-mood (car (shuffle moods))))
     (message "Playing: %s of Moods: %s" play-mood moods)
     (org-music-play-random-song play-mood)))
+
+(defun org-music-contextual-playlist (playlist-length)
+  "Create, play a contextually relevant playlist of PLAYLIST-LENGTH."
+  (interactive)
+  (let* ((moods (fetch-samvayati-moods))
+         (play-mood (car (shuffle moods))))
+    (org-music-play-random-song play-mood)
+    (cl-loop for i in (number-sequence 1 (1- playlist-length))
+             do (let ((play-mood (car (shuffle moods))))
+                  (message "Playing: %s of Moods: %s" play-mood moods)
+                  (org-music-play-random-song play-mood t)))))
 
 ;; Control Music Player on Android via Termux
 ;; ------------------------------------------
