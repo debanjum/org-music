@@ -78,6 +78,11 @@ Read, write path on Linux. Write path on Android relative to Termux root"
   :group 'org-music
   :type 'string)
 
+(defcustom org-music-playlist-file "orgmusic.m3u"
+  "Name of org-music playlist file."
+  :group 'org-music
+  :type 'string)
+
 (defcustom org-music-cache-size 100
   "Media cache size."
   :group 'org-music
@@ -380,15 +385,15 @@ Stream if STREAM-P, Else Download and Play Cached."
 
 (defun org-music--write-playlist-to-file (m3u-playlist)
   "Write M3U-PLAYLIST to file."
-  (let ((playlist-file (format "%s%s" org-music-media-directory "orgmusic.m3u")))
+  (let ((playlist-file (format "%s%s" org-music-media-directory org-music-playlist-file)))
     (write-region (format "#EXTM3U\n%s" m3u-playlist) nil playlist-file)))
 
 (defun org-music--share-playlist ()
   "Share playlist based on operating system.
 Share with emms on linux and android music player via termux on android."
   (if (equal org-music-operating-system "android")
-      (shell-command-to-string (format "termux-open \"%s%s\"" org-music-android-media-directory "orgmusic.m3u"))
-    (emms-play-playlist (format "%s%s" (expand-file-name org-music-media-directory) "orgmusic.m3u"))))
+      (shell-command-to-string (format "termux-open \"%s%s\"" org-music-android-media-directory org-music-playlist-file))
+    (emms-play-playlist (format "%s%s" (expand-file-name org-music-media-directory) org-music-playlist-file))))
 
 (defun org-music--get-youtube-url (search-query)
   "Retrieve URL of the top result for SEARCH-QUERY on Youtube."
