@@ -281,13 +281,12 @@ Read, write path on Linux. Write path on Android relative to Termux root"
 
 (defun swap (LIST el1 el2)
   "Swap LIST indices EL1 and EL2 in place."
-  (let ((tmp (elt LIST el1)))
-    (setf (elt LIST el1) (elt LIST el2))
-    (setf (elt LIST el2) tmp)))
+  (psetf (elt LIST el2) (elt LIST el1)
+         (elt LIST el1) (elt LIST el2))
+  LIST)
 
 (defun shuffle (LIST)
-  "Shuffle the elements in LIST.
-shuffling is done in place."
+  "Shuffle the elements in LIST. Shuffling is done in place."
   (cl-loop for i in (reverse (number-sequence 1 (1- (length LIST))))
            do (let ((j (random (+ i 1))))
                 (swap LIST i j)))
