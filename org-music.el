@@ -72,6 +72,11 @@ Read, write path on Linux. Write path on Android relative to Termux root"
   :group 'org-music
   :type '(file :must-match t))
 
+(defcustom org-music-operating-system "android"
+  "Operating system org-music running on."
+  :group 'org-music
+  :type 'string)
+
 (defcustom org-music-cache-size 100
   "Media cache size."
   :group 'org-music
@@ -423,7 +428,7 @@ Stream if STREAM-P, Else Download and Play Cached."
           (emms-add-file uri-location)
       (emms-play-file uri-location)))))
 
-(defun org-music--cache-song (song-name &optional source os)
+(defun org-music--cache-song (song-name &optional source)
   "If SONG-NAME not available in local, download from SOURCE. Return local song URI based on OS."
   (interactive)
   (let ((song-file-location
@@ -434,21 +439,21 @@ Stream if STREAM-P, Else Download and Play Cached."
        ;; if file doesn't exist, trim cache and download file
       (if (not (file-exists-p song-file-location))
           (progn
-            (org-music--trim-cache os)
+            (org-music--trim-cache)
             (org-music--get-song song-name song-file-location)))
       ;; return song uri based on operating system
-      (if (equal os "android")
+      (if (equal org-music-operating-system "android")
           (format "%s%s.%s" org-music-android-media-directory song-name org-music-cache-song-format)
         song-file-location))))
 
-(defun org-music--trim-cache (&optional os)
+(defun org-music--trim-cache ()
   "Trim media cache if larger than cache-size. Handle different file return ordering based on OS."
   (interactive)
   (let* ((pre-sorted-files
           (sort
            (directory-files (expand-file-name org-music-media-directory) t directory-files-no-dot-files-regexp)
            'file-newer-than-file-p))
-         (sorted-files (if (equal os "android")
+         (sorted-files (if (equal org-music-operating-system "android")
                            (reverse pre-sorted-files)
                          pre-sorted-files)))
     (message "trim music cache of: %s" (butlast sorted-files org-music-cache-size))
