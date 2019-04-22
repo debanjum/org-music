@@ -46,6 +46,7 @@
 (declare-function emms-play-url "ext:emms")
 (declare-function emms-add-file "ext:emms")
 (declare-function emms-play-file "ext:emms")
+(declare-function emms-play-playlist "ext:emms")
 (declare-function org-randomnote "ext:org-randomnote")
 (declare-function org-agenda-write "ext:org-agenda")
 
@@ -286,7 +287,7 @@ Read, write path on Linux. Write path on Android relative to Termux root"
 
 (defun swap (LIST el1 el2)
   "Swap LIST indices EL1 and EL2 in place."
-  (psetf (elt LIST el2) (elt LIST el1)
+  (cl-psetf (elt LIST el2) (elt LIST el1)
          (elt LIST el1) (elt LIST el2))
   LIST)
 
@@ -348,18 +349,20 @@ Read, write path on Linux. Write path on Android relative to Termux root"
   ;; write filtered playlist to org file and open
   (org-agenda-write "~/.playlist.org" t)
   ;; get song-name from org playlist's headings, format it to enqueue and play in mpsyt, trigger mpsyt
-  (org-music-play-list-on-android)
+  (org-music-play-playlist)
   (kill-buffer ".playlist.org"))
 
-(defun org-music-contextual-playlist-on-android ()
-  "Create contextually relevant playlist from org song headings and share via Termux to android music player."
+(defun org-music-play-contextual-playlist ()
+  "Create contextually relevant playlist from org song headings. Share playlist with OS specific player."
+  (interactive)
   (org-music--create-m3u-playlist (org-music--get-contextual-songs 5) t)
-  (org-music--android-share-playlist))
+  (org-music--share-playlist))
 
-(defun org-music-play-list-on-android ()
-  "Create playlist from org song headings and share via Termux to android music player."
+(defun org-music-play-playlist ()
+  "Create playlist from org song headings. Share playlist with OS specific player."
+  (interactive)
   (org-music--create-m3u-playlist (org-music--get-org-headings))
-  (org-music--android-share-playlist))
+  (org-music--share-playlist))
 
 (defun org-music--create-m3u-playlist (song-entries &optional stream-p)
   "Create m3u playlist from SONG-ENTRIES.
@@ -380,10 +383,12 @@ Stream if STREAM-P, Else Download and Play Cached."
   (let ((playlist-file (format "%s%s" org-music-media-directory "orgmusic.m3u")))
     (write-region (format "#EXTM3U\n%s" m3u-playlist) nil playlist-file)))
 
-(defun org-music--android-share-playlist ()
-  "Share playlist via termux to an android music player."
-  (let ((playlist-file (format "%s%s" org-music-android-media-directory "orgmusic.m3u")))
-  (shell-command-to-string (format "termux-open %S" playlist-file))))
+(defun org-music--share-playlist ()
+  "Share playlist based on operating system.
+Share with emms on linux and android music player via termux on android."
+  (if (equal org-music-operating-system "android")
+      (shell-command-to-string (format "termux-open \"%s%s\"" org-music-android-media-directory "orgmusic.m3u"))
+    (emms-play-playlist (format "%s%s" (expand-file-name org-music-media-directory) "orgmusic.m3u"))))
 
 (defun org-music--get-youtube-url (search-query)
   "Retrieve URL of the top result for SEARCH-QUERY on Youtube."
