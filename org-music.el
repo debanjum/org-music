@@ -109,10 +109,12 @@ Read, write path on Linux. Write path on Android relative to Termux root"
 
 (defun org-music--get-song-properties-of-entry (entry)
   "Extract CATEGORY and (QUERY property else title) of ENTRY."
-  (when (equal "song" (org-element-property :TYPE entry))
-    (if (not (null (org-element-property :QUERY entry)))
-        (list (org-element-property :QUERY entry) (org-element-property :CATEGORY entry))
-      (list (org-element-property :raw-value entry) (org-element-property :CATEGORY entry)))))
+  (let ((query (org-element-property :QUERY entry))
+        (category (org-element-property :CATEGORY entry))
+        (type (org-element-property :TYPE entry))
+        (title (org-element-property :raw-value entry)))
+    (when (equal "song" type)
+      (list (or query title) (or category "youtube")))))
 
 (defun org-music--get-org-headings ()
   "Extract song headings from active/narrowed/sparse-tree region of org buffer."
@@ -210,12 +212,12 @@ Read, write path on Linux. Write path on Android relative to Termux root"
 (defun get-random-songs (tags-match playlist-length)
   "Get random TAGS-MATCH satisfying songs numbering PLAYLIST-LENGTH in ORG-MUSIC-FILE."
   (find-file org-music-file)
-  (car
+  (cdr
    (last
     (shuffle
      (org-scan-tags
       #'(lambda () (org-music--get-song-properties-of-entry (org-element-at-point)))
-      (cdr (org-make-tags-matcher (or tags-match "TYPE=\"song\""))) nil))
+      (cdr (org-make-tags-matcher (format "%s TYPE=\"song\"" tags-match))) nil))
     playlist-length)))
 
 (defun org-music-play-random-song (&optional match enqueue)
