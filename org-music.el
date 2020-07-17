@@ -64,7 +64,8 @@ Read, write path on Linux. Write path on Android relative to Termux root"
   :type 'directory)
 
 (defcustom org-music-android-media-directory "file:///storage/emulated/0/Music/OrgMusic/"
-  "Media cache location on android. Used to retrieve songs, playlists on android."
+  "Media cache location on Android. Path relative to Android FS root.
+Used to retrieve songs, playlists on android media player."
   :group 'org-music
   :type 'string)
 
@@ -550,8 +551,8 @@ Share with emms on linux and android music player via termux on android."
             (define-key map (kbd "C-x p n") '(lambda () "play next track in playlist" (interactive) (emms-next)))
             (define-key map (kbd "C-x p r") '(lambda () "play previous track in playlist" (interactive) (org-music-play-random-song)))
             (define-key map (kbd "C-x p R") '(lambda () "play next track in playlist" (interactive) (org-music-play-random-songs)))
-            (define-key map (kbd "C-x p c") '(lambda () "play next track in playlist" (interactive) (org-music-play-contextual-music)))
-            (define-key map (kbd "C-x p C") '(lambda () "play next track in playlist" (interactive) (org-music-play-contextual-music t)))
+            (define-key map (kbd "C-x p c") '(lambda () "play song based on context" (interactive) (org-music-play-contextual-music)))
+            (define-key map (kbd "C-x p C") '(lambda () "play contextual music continuously" (interactive) (org-music-play-contextual-music t)))
             map)
 
   ;; define music speed commands
