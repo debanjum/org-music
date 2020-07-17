@@ -101,6 +101,10 @@ Read, write path on Linux. Write path on Android relative to Termux root"
 (defvar org-music-last-playlist-filter nil
   "Last org filter used to create playlist.")
 
+(defconst not-on-song-type-heading
+  "𝄗𝄢 Error: Can only play a heading of song type (:PROPERTIES: :TYPE: song)"
+  "Error message for not on song type heading")
+
 (defun org-music--flatten (l)
   "Org-Music--Flatten recursive list L."
   (cond ((null l) nil)
@@ -264,18 +268,24 @@ Read, write path on Linux. Write path on Android relative to Termux root"
   (let ((song-name (format "%s" (nth 4 (org-heading-components))))
         (query (org-music--search-song-at-point))
         (source (org-music--get-song-source)))
-    (org-music--play-cached-song (car (org-music--flatten query)) source t)
-    (message "Streaming: %s" song-name)
-    (org-music--log-song-state "ENQUEUED")))
+    (if (equal "song" (org-entry-get nil "TYPE"))
+        (progn
+          (org-music--play-cached-song (car (org-music--flatten query)) source t)
+          (message "Streaming: %s" song-name)
+          (org-music--log-song-state "ENQUEUED"))
+      (message not-on-song-type-heading))))
 
 (defun org-music-play-song-at-point ()
   "Open song at point."
   (let ((song-name (format "%s" (nth 4 (org-heading-components))))
         (query (org-music--search-song-at-point))
         (source (org-music--get-song-source)))
-    (org-music--play-cached-song (car (org-music--flatten query)) source nil)
-    (message "Streaming: %s" song-name)
-    (org-music--log-song-state "ENQUEUED")))
+    (if (equal "song" (org-entry-get nil "TYPE"))
+        (progn
+          (org-music--play-cached-song (car (org-music--flatten query)) source nil)
+          (message "Streaming: %s" song-name)
+          (org-music--log-song-state "ENQUEUED"))
+      (message not-on-song-type-heading))))
 
 (defun org-music-enqueue-list (&optional songs-list)
   "Enqueue SONGS-LIST in active/narrowed/sparse-tree region of org buffer."
