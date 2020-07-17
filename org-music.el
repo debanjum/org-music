@@ -302,6 +302,10 @@ Read, write path on Linux. Write path on Android relative to Termux root"
     (apply #'org-music--play-cached-song (pop songs))
     (org-music-enqueue-list songs)))
 
+(defun active-minor-modes ()
+  "List active minor modes in current buffer"
+  (seq-filter (lambda (mode) (and (boundp mode) (symbol-value mode))) minor-mode-list))
+
 (defun swap (LIST el1 el2)
   "Swap LIST indices EL1 and EL2 in place."
   (cl-psetf (elt LIST el2) (elt LIST el1)
@@ -544,8 +548,9 @@ Share with emms on linux and android music player via termux on android."
 
   ;; define music speed commands
   (defun org-music--speed (keys)
-    "Use speed commands if at cursor at beginning of an org-heading line"
-    (when (and (bolp) (looking-at org-outline-regexp))
+    "Use speed commands in org-music-mode if cursor at beginning of an org-heading line"
+    (when (and (member 'org-music-mode (active-minor-modes))
+               (bolp) (looking-at org-outline-regexp))
       (cdr (assoc keys
                   '(("o" . (lambda () "play song at point" (org-music-play-song-at-point)))
                     ("e" . (lambda () "enqueue song at point" (org-music-enqueue-song-at-point)))
