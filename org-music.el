@@ -487,6 +487,13 @@ Share with emms on linux and android music player via termux on android."
 
 ;; Org Music Library Metadata Enhancement Methods
 ;; ----------------------------------------------
+(defun org-music--toggle-mark-heading-as-song ()
+  "Add property :TYPE: song to heading at point. Remove it, if already present"
+  (interactive)
+  (if (not (equal "song" (org-entry-get nil "TYPE")))
+      (org-set-property "TYPE" "song")
+    (org-delete-property "TYPE")))
+
 (defun org-music--append-outline-to-song-entries ()
   "Add outline parents of all visible song headings to their org entries."
   (interactive)
@@ -537,6 +544,7 @@ Share with emms on linux and android music player via termux on android."
   :keymap (let ((map (make-sparse-keymap)))
             (define-key map (kbd "C-x p o") 'org-music-play-list)
             (define-key map (kbd "C-x p e") 'org-music-enqueue-list)
+            (define-key map (kbd "C-x p s") 'org-music--toggle-mark-heading-as-song)
             (define-key map (kbd "C-x p <SPC>") '(lambda () "play/pause" (interactive) (emms-pause)))
             (define-key map (kbd "C-x p p") '(lambda () "play previous track in playlist" (interactive) (emms-previous)))
             (define-key map (kbd "C-x p n") '(lambda () "play next track in playlist" (interactive) (emms-next)))
