@@ -476,13 +476,11 @@ Share with emms on linux and android music player via termux on android."
 (defun org-music--trim-cache ()
   "Trim media cache if larger than cache-size. Handle different file return ordering based on OS."
   (interactive)
-  (let* ((pre-sorted-files
+  (let ((sorted-files
+          (reverse
           (sort
            (directory-files (expand-file-name org-music-media-directory) t directory-files-no-dot-files-regexp)
-           'file-newer-than-file-p))
-         (sorted-files (if (equal org-music-operating-system "android")
-                           (reverse pre-sorted-files)
-                         pre-sorted-files)))
+           'file-newer-than-file-p))))
     (message "trim music cache of: %s" (butlast sorted-files org-music-cache-size))
     (mapcar 'delete-file (butlast sorted-files org-music-cache-size))))
 
