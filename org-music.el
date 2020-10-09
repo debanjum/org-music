@@ -217,18 +217,18 @@ Used to retrieve songs, playlists on android media player."
 (defun get-random-songs (tags-match playlist-length)
   "Get random TAGS-MATCH satisfying songs numbering PLAYLIST-LENGTH in ORG-MUSIC-FILE."
   (find-file org-music-file)
-  (cdr
    (last
     (shuffle
      (org-scan-tags
-      #'(lambda () (org-music--get-song-properties-of-entry (org-element-at-point)))
-      (cdr (org-make-tags-matcher (format "%s TYPE=\"song\"" tags-match))) nil))
-    playlist-length)))
+      '(org-music--get-song-properties-of-entry (org-element-at-point))
+      (cdr (org-make-tags-matcher (format "%s TYPE=song" tags-match)))
+      nil))
+    playlist-length))
 
 (defun org-music-play-random-song (&optional match enqueue)
   "Play (or ENQUEUE) random song satisfying 'MATCH' in the music library."
   (interactive)
-  (let ((song (get-random-songs (or match org-music-last-playlist-filter nil) 1))
+  (let ((song (car (get-random-songs (or match org-music-last-playlist-filter nil) 1)))
         (enqueue (or enqueue nil)))
     (apply #'org-music--play-cached-song (append song (list enqueue))))
   (bury-buffer))
