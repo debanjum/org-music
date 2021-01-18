@@ -1,6 +1,6 @@
 ;;; org-music.el --- Store and play music from a simple org-mode file
 
-;; Copyright (C) 2017-2019 Debanjum Singh Solanky
+;; Copyright (C) 2017-2021 Debanjum Singh Solanky
 
 ;; Author: Debanjum Singh Solanky <debanjum@gmail.com>
 ;; Version: 1.0
@@ -230,8 +230,7 @@ Used to retrieve songs, playlists on android media player."
   (interactive)
   (let ((song (car (get-random-songs (or match org-music-last-playlist-filter nil) 1)))
         (enqueue (or enqueue nil)))
-    (apply #'org-music--play-cached-song (append song (list enqueue))))
-  (bury-buffer))
+    (apply #'org-music--play-cached-song (append song (list enqueue)))))
 
 (defun org-music-play-random-songs (&optional match)
   "Play random songs satisfying 'MATCH' in the music library."
@@ -547,8 +546,8 @@ Share with emms on linux and android music player via termux on android."
             (define-key map (kbd "C-x p <SPC>") '(lambda () "play/pause" (interactive) (emms-pause)))
             (define-key map (kbd "C-x p p") '(lambda () "play previous track in playlist" (interactive) (emms-previous)))
             (define-key map (kbd "C-x p n") '(lambda () "play next track in playlist" (interactive) (emms-next)))
-            (define-key map (kbd "C-x p r") '(lambda () "play previous track in playlist" (interactive) (org-music-play-random-song)))
-            (define-key map (kbd "C-x p R") '(lambda () "play next track in playlist" (interactive) (org-music-play-random-songs)))
+            (define-key map (kbd "C-x p r") '(lambda () "play previous random track in playlist" (interactive) (org-music-play-random-song)))
+            (define-key map (kbd "C-x p R") '(lambda () "play next random track in playlist" (interactive) (org-music-play-random-songs)))
             (define-key map (kbd "C-x p c") '(lambda () "play song based on context" (interactive) (org-music-play-contextual-music)))
             (define-key map (kbd "C-x p C") '(lambda () "play contextual music continuously" (interactive) (org-music-play-contextual-music t)))
             map)
