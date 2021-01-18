@@ -2,6 +2,9 @@ Store and play music from a simple org-mode file
 
 Zero (dev) effort syncing, versioning, tagging, sharing, semantic search, dynamic playlists and more straight out of the box.
 
+* Demo
+  [[./sample/play-org-music-demo.gif]]
+
 * Dependencies
   1. [[https://ytdl-org.github.io/youtube-dl/][youtube-dl]]: For downloading songs from youtube.
   2. [[https://www.gnu.org/software/emms/][emms]]: For playing songs on emacs
