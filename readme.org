@@ -22,7 +22,7 @@ Zero (dev) effort syncing, versioning, tagging, sharing, semantic search, dynami
                   org-music-operating-system "linux")))
      #+end_src
   4. M-x load-file RET init.el
-  5. Open [[./sample.org][sample.org]] in Emacs
+  5. Open [[./sample/sample.org][sample.org]] in Emacs
   6. M-x org-music-mode
   7. Press speed-key "o" on a song to play it
 
