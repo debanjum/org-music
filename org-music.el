@@ -446,6 +446,9 @@ Share with emms on linux and android music player via termux on android."
   (interactive)
   (let ((uri-location (org-music--cache-song song-entry source)))
     (message "location: %s, source: %s" uri-location source)
+    ;; update modification time of local file being played
+    ;; ensures cache trim least recently modified file
+    (if (not (equal source "nextcloud")) (set-file-times uri-location))
     (if (equal source "nextcloud")
         (if enqueue
             (emms-add-url uri-location)
@@ -478,7 +481,7 @@ Share with emms on linux and android music player via termux on android."
   (let ((sorted-files
           (reverse
           (sort
-           (directory-files (expand-file-name org-music-media-directory) t directory-files-no-dot-files-regexp)
+           (directory-files (expand-file-name org-music-media-directory) t "m4a$")
            'file-newer-than-file-p))))
     (message "trim music cache of: %s" (butlast sorted-files org-music-cache-size))
     (mapcar 'delete-file (butlast sorted-files org-music-cache-size))))
