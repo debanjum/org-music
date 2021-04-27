@@ -541,7 +541,7 @@ Share with emms on linux and android music player via termux on android."
 ;; Configure Org-Music Mode
 (define-minor-mode org-music-mode
   "Play music from org"
-  :lighter " 𝄗𝄢"
+  :lighter " 𝄢"
   :keymap (let ((map (make-sparse-keymap)))
             (define-key map (kbd "C-x p o") 'org-music-play-list)
             (define-key map (kbd "C-x p e") 'org-music-enqueue-list)
