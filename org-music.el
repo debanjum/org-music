@@ -59,7 +59,7 @@
 
 (defcustom org-music-media-directory "~/Music/OrgMusic/"
   "Media cache location.
-Read, write path on Linux. Write path on Android relative to Termux root"
+Read, write path on unixes. Write path on Android relative to Termux root"
   :group 'org-music
   :type 'directory)
 
@@ -228,7 +228,7 @@ Used to retrieve songs, playlists on android media player."
 (defun org-music-play-random-song (&optional match enqueue)
   "Play (or ENQUEUE) random song satisfying 'MATCH' in the music library."
   (interactive)
-  (let ((song (car (get-random-songs (or match org-music-last-playlist-filter nil) 1)))
+  (let ((song (car (get-random-songs (or match org-music-last-playlist-filter "") 1)))
         (enqueue (or enqueue nil)))
     (apply #'org-music--play-cached-song (append song (list enqueue)))))
 
@@ -236,6 +236,7 @@ Used to retrieve songs, playlists on android media player."
   "Play random songs satisfying 'MATCH' in the music library."
   (interactive)
   (let ((playlist-filter (or match org-music-last-playlist-filter)))
+    (setq org-music-last-playlist-filter playlist-filter)
     (org-music-play-random-song playlist-filter)
     (add-hook 'emms-player-finished-hook 'org-music-play-random-songs)
     (add-hook 'emms-player-stopped-hook #'(lambda () (remove-hook 'emms-player-finished-hook 'org-music-play-random-songs)))))
@@ -406,7 +407,7 @@ Stream if STREAM-P, Else Download and Play Cached."
 
 (defun org-music--share-playlist ()
   "Share playlist based on operating system.
-Share with emms on linux and android music player via termux on android."
+Share with emms on unixes and android music player via termux on android."
   (if (equal org-music-operating-system "android")
       (shell-command-to-string (format "termux-open \"%s%s\"" org-music-android-media-directory org-music-playlist-file))
     (emms-play-playlist (format "%s%s" (expand-file-name org-music-media-directory) org-music-playlist-file))))
