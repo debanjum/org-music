@@ -420,7 +420,7 @@ Share with emms on linux and android music player via termux on android."
   (replace-regexp-in-string
    "\n$" ""
    (shell-command-to-string
-    (format "youtube-dl --get-id ytsearch:\"%s\"" (car song-entry)))))
+    (format "youtube-dl --no-mtime --get-id ytsearch:\"%s\"" (car song-entry)))))
 
 (defun org-music--android-share-youtube-song (song-id)
   "Share constructed youtube-url based on SONG-ID via termux to play on android youtube player."
@@ -437,7 +437,7 @@ Share with emms on linux and android music player via termux on android."
   "Download NAME to FILE-LOCATION from Youtube."
   (interactive)
   (let ((download-command
-         (format "youtube-dl -f %s --quiet ytsearch:%S -o %S" org-music-cache-song-format name file-location)))
+         (format "youtube-dl --no-mtime -f %s --quiet ytsearch:%S -o %S" org-music-cache-song-format name file-location)))
     (message "%s" download-command)
     (shell-command-to-string download-command)))
 
