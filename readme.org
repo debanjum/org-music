@@ -1,6 +1,6 @@
 * Org-Music
-  - Store and play music from a simple org-mode file.
-  - Zero (dev) effort syncing, versioning, tagging, sharing, semantic search, dynamic playlists and more straight out of the box.
+  - Play music from your music library in [[https://orgmode.org][org-mode]] 
+  - Get [[https://syncthing.net/][syncing]], [[https://magit.vc][versioning]], [[https://orgmode.org/guide/Tags.html][tagging]], [[https://orgmode.org/manual/Org-Export.html#Org-Export][sharing]], [[https://orgmode.org/worg/org-tutorials/advanced-searching.html][advanced search]], dynamic playlists straight out of the box
 
 ** Usage
    1. Install Org-Music by following instructions below
