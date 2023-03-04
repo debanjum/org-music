@@ -113,13 +113,13 @@ Used to retrieve songs, playlists on android media player."
    (t (cl-loop for a in l appending (org-music--flatten a)))))
 
 (defun org-music--get-song-properties-of-entry (entry)
-  "Extract CATEGORY and (QUERY property else title) of ENTRY."
+  "Extract title, category and (query property else title) of ENTRY."
   (let ((query (org-element-property :QUERY entry))
         (category (org-element-property :CATEGORY entry))
         (type (org-element-property :TYPE entry))
         (title (org-element-property :raw-value entry)))
     (when (equal "song" type)
-      (list (or query title) (or category "youtube")))))
+      (list title (or query title) (or category "youtube")))))
 
 (defun org-music--get-org-headings ()
   "Extract song headings from active/narrowed/sparse-tree region of org buffer."
@@ -271,7 +271,7 @@ Used to retrieve songs, playlists on android media player."
         (source (org-music--get-song-source)))
     (if (equal "song" (org-entry-get nil "TYPE"))
         (progn
-          (org-music--play-cached-song (car (org-music--flatten query)) source t)
+          (org-music--play-cached-song song-name (car (org-music--flatten query)) source t)
           (message "Streaming: %s" song-name)
           (org-music--log-song-state "ENQUEUED"))
       (message not-on-song-type-heading))))
@@ -283,7 +283,7 @@ Used to retrieve songs, playlists on android media player."
         (source (org-music--get-song-source)))
     (if (equal "song" (org-entry-get nil "TYPE"))
         (progn
-          (org-music--play-cached-song (car (org-music--flatten query)) source nil)
+          (org-music--play-cached-song song-name (car (org-music--flatten query)) source nil)
           (message "Streaming: %s" song-name)
           (org-music--log-song-state "ENQUEUED"))
       (message not-on-song-type-heading))))
@@ -434,18 +434,18 @@ Share with emms on unixes and android music player via termux on android."
    (shell-command-to-string
     (format "%s \"get_url\" \"%s\"" org-music-next-cloud-script (car song-entry)))))
 
-(defun org-music--get-song (name file-location)
-  "Download NAME to FILE-LOCATION from Youtube."
+(defun org-music--get-song (query file-location)
+  "Download song satisfying SONG-QUERY from Youtube to FILE-LOCATION."
   (interactive)
   (let ((download-command
-         (format "youtube-dl --no-mtime -f %s --quiet ytsearch:%S -o %S" org-music-cache-song-format name file-location)))
+         (format "youtube-dl --no-mtime -f %s --quiet ytsearch:%S -o %S" org-music-cache-song-format song-query file-location)))
     (message "%s" download-command)
     (shell-command-to-string download-command)))
 
-(defun org-music--play-cached-song (song-entry &optional source enqueue)
-  "Cache SONG-ENTRY from SOURCE. Enqueue song if ENQUEUE true else play."
+(defun org-music--play-cached-song (song-name song-entry source enqueue)
+  "Cache SONG-ENTRY from SOURCE as SONG-NAME. Enqueue song if ENQUEUE true else play."
   (interactive)
-  (let ((uri-location (org-music--cache-song song-entry source)))
+  (let ((uri-location (org-music--cache-song song-name song-entry source)))
     (message "location: %s, source: %s" uri-location source)
     ;; update modification time of local file being played
     ;; ensures cache trim least recently modified file
@@ -458,8 +458,8 @@ Share with emms on unixes and android music player via termux on android."
           (emms-add-file uri-location)
       (emms-play-file uri-location)))))
 
-(defun org-music--cache-song (song-name &optional source)
-  "If SONG-NAME not available in local, download from SOURCE. Return local song URI based on OS."
+(defun org-music--cache-song (song-name song-query source)
+  "If SONG-NAME not available in local, download from SOURCE using SONG-QUERY. Return local song URI based on OS."
   (interactive)
   (let ((song-file-location
          (format "%s%s.%s" org-music-media-directory song-name org-music-cache-song-format)))
@@ -470,7 +470,7 @@ Share with emms on unixes and android music player via termux on android."
       (if (not (file-exists-p song-file-location))
           (progn
             (org-music--trim-cache)
-            (org-music--get-song song-name song-file-location)))
+            (org-music--get-song song-query song-file-location)))
       ;; return song uri based on operating system
       (if (equal org-music-operating-system "android")
           (format "%s%s.%s" org-music-android-media-directory song-name org-music-cache-song-format)
