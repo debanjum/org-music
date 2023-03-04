@@ -1,5 +1,5 @@
 * Org-Music
-  - Play music from your music library in [[https://orgmode.org][org-mode]] 
+  - Play music from your music library in [[https://orgmode.org][Org-mode]] via Youtube
   - Get [[https://syncthing.net/][syncing]], [[https://magit.vc][versioning]], [[https://orgmode.org/guide/Tags.html][tagging]], [[https://orgmode.org/manual/Org-Export.html#Org-Export][sharing]], [[https://orgmode.org/worg/org-tutorials/advanced-searching.html][advanced search]], dynamic playlists straight out of the box
 
 ** Usage
@@ -30,7 +30,6 @@
 *** Dependencies
     1. [[https://ytdl-org.github.io/youtube-dl/][youtube-dl]]: For downloading songs from youtube.
     2. [[https://www.gnu.org/software/emms/][emms]]: For playing songs on emacs
-    3. [[https://github.com/mwfogleman/org-randomnote][org-randomnote]]: To allow for some randomness in your music playlist creation
 
 ** Why was this tool created?
    I was sick of the ad-hoc ephemerality of my music collection. I loved the simple sturdiness of plain-text, emacs and org-mode.

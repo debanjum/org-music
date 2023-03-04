@@ -1,10 +1,10 @@
 ;;; org-music.el --- Store and play music from a simple org-mode file
 
-;; Copyright (C) 2017-2021 Debanjum Singh Solanky
+;; Copyright (C) 2017-2023 Debanjum Singh Solanky
 
 ;; Author: Debanjum Singh Solanky <debanjum@gmail.com>
 ;; Version: 1.0
-;; Package-Requires: ((org "9.0") (emms "5.0") (org-randomnote "0.1"))
+;; Package-Requires: ((emacs "26.1") (emms "5.0"))
 ;; Keywords: hypermedia, multimedia, outlines, music, org-mode
 ;; URL: http://gitlab.com/debanjum/org-music
 
@@ -28,17 +28,16 @@
 ;;; Commentary:
 
 ;; This package provides a minor mode to turn an org file into an
-;; interactive music library. Get syncing, versioning, tagging,
-;; sharing, semantic, full text search and more straight out of the
-;; box. It's plain-text after all!
-
+;; interactive music library. Pulls song from Youtube by default
+;; (using youtube-dl) or from your Nextcloud when specified. Get
+;; syncing, versioning, tagging, sharing, semantic, full text search
+;; and more straight out of the box. It's plain-text after all!
 ;;; Code:
 
 
 (require 'shell)
 (require 'org)
 (require 'emms)
-(require 'org-randomnote)
 (require 'url)
 (require 'json)
 
@@ -47,7 +46,6 @@
 (declare-function emms-add-file "ext:emms")
 (declare-function emms-play-file "ext:emms")
 (declare-function emms-play-playlist "ext:emms")
-(declare-function org-randomnote "ext:org-randomnote")
 (declare-function org-agenda-write "ext:org-agenda")
 
 ;; Org Music Library Media Control
@@ -102,9 +100,9 @@ Used to retrieve songs, playlists on android media player."
 (defvar org-music-last-playlist-filter nil
   "Last org filter used to create playlist.")
 
-(defconst not-on-song-type-heading
+(defconst org-music--not-on-song-type-heading
   "𝄗𝄢 Error: Can only play a heading of song type (:PROPERTIES: :TYPE: song)"
-  "Error message for not on song type heading")
+  "Error message if cursor not on song type heading.")
 
 (defun org-music--flatten (l)
   "Org-Music--Flatten recursive list L."
@@ -206,19 +204,11 @@ Used to retrieve songs, playlists on android media player."
     "echo '{ \"command\": [\"loadfile\", \"ytdl://ytsearch:\\\"%s\\\"\", \"append-play\"] }' | socat - /tmp/mpvsocket"
     search-query)))
 
-(defun org-music-jump-to-random-song (&optional match)
-  "Jump to a random song satisfying 'MATCH' in the music library."
-  (interactive)
-  (let ((org-randomnote-candidates (list org-music-file))
-        (song-match (concat (or match org-music-last-playlist-filter "") "+TYPE=\"song\"")))
-    (setq org-music-last-playlist-filter match)
-    (org-randomnote song-match)))
-
-(defun get-random-songs (tags-match playlist-length)
+(defun org-music--get-random-songs (tags-match playlist-length)
   "Get random TAGS-MATCH satisfying songs numbering PLAYLIST-LENGTH in ORG-MUSIC-FILE."
   (find-file org-music-file)
    (last
-    (shuffle
+    (org-music--shuffle
      (org-scan-tags
       '(org-music--get-song-properties-of-entry (org-element-at-point))
       (cdr (org-make-tags-matcher (format "%s TYPE=song" tags-match)))
@@ -228,7 +218,7 @@ Used to retrieve songs, playlists on android media player."
 (defun org-music-play-random-song (&optional match enqueue)
   "Play (or ENQUEUE) random song satisfying 'MATCH' in the music library."
   (interactive)
-  (let ((song (car (get-random-songs (or match org-music-last-playlist-filter "") 1)))
+  (let ((song (car (org-music--get-random-songs (or match org-music-last-playlist-filter "") 1)))
         (enqueue (or enqueue nil)))
     (apply #'org-music--play-cached-song (append song (list enqueue)))))
 
@@ -274,7 +264,7 @@ Used to retrieve songs, playlists on android media player."
           (org-music--play-cached-song song-name (car (org-music--flatten query)) source t)
           (message "Streaming: %s" song-name)
           (org-music--log-song-state "ENQUEUED"))
-      (message not-on-song-type-heading))))
+      (message org-music--not-on-song-type-heading))))
 
 (defun org-music-play-song-at-point ()
   "Open song at point."
@@ -286,7 +276,7 @@ Used to retrieve songs, playlists on android media player."
           (org-music--play-cached-song song-name (car (org-music--flatten query)) source nil)
           (message "Streaming: %s" song-name)
           (org-music--log-song-state "ENQUEUED"))
-      (message not-on-song-type-heading))))
+      (message org-music--not-on-song-type-heading))))
 
 (defun org-music-enqueue-list (&optional songs-list)
   "Enqueue SONGS-LIST in active/narrowed/sparse-tree region of org buffer."
@@ -303,42 +293,42 @@ Used to retrieve songs, playlists on android media player."
     (apply #'org-music--play-cached-song (pop songs))
     (org-music-enqueue-list songs)))
 
-(defun active-minor-modes ()
-  "List active minor modes in current buffer"
+(defun org-music--active-minor-modes ()
+  "List active minor modes in current buffer."
   (seq-filter (lambda (mode) (and (boundp mode) (symbol-value mode))) minor-mode-list))
 
-(defun swap (LIST el1 el2)
+(defun org-music--swap (LIST el1 el2)
   "Swap LIST indices EL1 and EL2 in place."
   (cl-psetf (elt LIST el2) (elt LIST el1)
          (elt LIST el1) (elt LIST el2))
   LIST)
 
-(defun shuffle (LIST)
+(defun org-music--shuffle (LIST)
   "Shuffle the elements in LIST. Shuffling is done in place."
   (cl-loop for i in (reverse (number-sequence 1 (1- (length LIST))))
            do (let ((j (random (+ i 1))))
-                (swap LIST i j)))
+                (org-music--swap LIST i j)))
   LIST)
 
-(defun fetch-json (url)
+(defun org-music--fetch-json (url)
   "Fetch json from  URL."
   (with-current-buffer (url-retrieve-synchronously url)
     (goto-char (1+ url-http-end-of-headers))
     (json-read)))
 
-(defun fetch-samvayati-moods ()
+(defun org-music--fetch-samvayati-moods ()
   "Fetch contextual moods from samvayati."
   (let* ((json-object-type 'plist)
          (json-array-type 'list)
          (json-key-type 'string))
-    (nth 0 (cdadar (fetch-json
+    (nth 0 (cdadar (org-music--fetch-json
                     (format "%s/music?type=mood" org-music-samvayati-root-url))))))
 
 (defun org-music-play-contextual-music (&optional continuous)
   "Play a contextually relevant songs. If CONTINUOUS play infinite contextual playlist."
   (interactive)
-  (let* ((moods (fetch-samvayati-moods))
-         (play-mood (car (shuffle moods))))
+  (let* ((moods (org-music--fetch-samvayati-moods))
+         (play-mood (car (org-music--shuffle moods))))
     (message "Playing: %s of Moods: %s" play-mood moods)
     (if continuous
         (org-music-play-random-songs play-mood)
@@ -347,20 +337,20 @@ Used to retrieve songs, playlists on android media player."
 (defun org-music-contextual-playlist (playlist-length)
   "Create, play a contextually relevant playlist of PLAYLIST-LENGTH."
   (interactive)
-  (let* ((moods (fetch-samvayati-moods))
-         (play-mood (car (shuffle moods))))
+  (let* ((moods (org-music--fetch-samvayati-moods))
+         (play-mood (car (org-music--shuffle moods))))
     (org-music-play-random-song play-mood)
     (cl-loop for i in (number-sequence 1 (1- playlist-length))
-             do (let ((play-mood (car (shuffle moods))))
+             do (let ((play-mood (car (org-music--shuffle moods))))
                   (message "Playing: %s of Moods: %s" play-mood moods)
                   (org-music-play-random-song play-mood t)))))
 
 (defun org-music--get-contextual-songs (playlist-length)
   "Get contextually relevant songs numbering PLAYLIST-LENGTH."
   (interactive)
-  (let* ((moods (fetch-samvayati-moods))
-         (tags-match (format "TYPE=\"song\"%s" (car (shuffle moods)))))
-    (get-random-songs tags-match playlist-length)))
+  (let* ((moods (org-music--fetch-samvayati-moods))
+         (tags-match (format "TYPE=\"song\"%s" (car (org-music--shuffle moods)))))
+    (org-music--get-random-songs tags-match playlist-length)))
 
 ;; Control Music Player on Android via Termux
 ;; ------------------------------------------
@@ -435,7 +425,7 @@ Share with emms on unixes and android music player via termux on android."
     (format "%s \"get_url\" \"%s\"" org-music-next-cloud-script (car song-entry)))))
 
 (defun org-music--get-song (query file-location)
-  "Download song satisfying SONG-QUERY from Youtube to FILE-LOCATION."
+  "Download song satisfying QUERY from Youtube to FILE-LOCATION."
   (interactive)
   (let ((download-command
          (format "youtube-dl --no-mtime -f %s --quiet ytsearch:%S -o %S" org-music-cache-song-format song-query file-location)))
@@ -490,7 +480,7 @@ Share with emms on unixes and android music player via termux on android."
 ;; Org Music Library Metadata Enhancement Methods
 ;; ----------------------------------------------
 (defun org-music--toggle-mark-heading-as-song ()
-  "Add property :TYPE: song to heading at point. Remove it, if already present"
+  "Add property :TYPE: song to heading at point. Remove it, if already present."
   (interactive)
   (if (not (equal "song" (org-entry-get nil "TYPE")))
       (org-set-property "TYPE" "song")
@@ -541,7 +531,7 @@ Share with emms on unixes and android music player via termux on android."
 ;;;###autoload
 ;; Configure Org-Music Mode
 (define-minor-mode org-music-mode
-  "Play music from org"
+  "Play music from org."
   :lighter " 𝄢"
   :keymap (let ((map (make-sparse-keymap)))
             (define-key map (kbd "C-x p o") 'org-music-play-list)
@@ -559,7 +549,7 @@ Share with emms on unixes and android music player via termux on android."
   ;; define music speed commands
   (defun org-music--speed (keys)
     "Use speed commands in org-music-mode if cursor at beginning of an org-heading line"
-    (when (and (member 'org-music-mode (active-minor-modes))
+    (when (and (member 'org-music-mode (org-music--active-minor-modes))
                (bolp) (looking-at org-outline-regexp))
       (cdr (assoc keys
                   '(("o" . (lambda () "play song at point" (org-music-play-song-at-point)))
