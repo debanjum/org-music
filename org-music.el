@@ -47,6 +47,10 @@
 (declare-function emms-play-file "ext:emms")
 (declare-function emms-play-playlist "ext:emms")
 (declare-function org-agenda-write "ext:org-agenda")
+(declare-function org-element-property "ext:org-element")
+(declare-function org-element-map "ext:org-element")
+(declare-function org-element-parse-buffer "ext:org-element")
+(defvar url-http-end-of-headers)
 
 ;; Org Music Library Media Control
 ;; -------------------------------
@@ -144,7 +148,8 @@ Used to retrieve songs, playlists on android media player."
     (goto-char opos)))
 
 (defun org-music--get-search-query ()
-  "Retrieve QUERY property values or headings of org entries in active/narrowed/sparse-tree region of org buffer."
+  "Retrieve search query from active/narrowed/sparse-tree region of org buffer.
+search query is in QUERY property values or headings of org entries."
   (if (use-region-p)
       (narrow-to-region (point) (mark)))
   (let ((queries
@@ -161,7 +166,8 @@ Used to retrieve songs, playlists on android media player."
         ((nth 4 (org-heading-components)))))
 
 (defun org-music--get-song-source ()
-  "Retrieve data source from CATEGORY property value of song's org-entry if it exists. Defaults to Youtube."
+  "Retrieve data source from CATEGORY property value of song's org-entry if exists.
+Defaults to Youtube."
   (interactive)
   (cond ((org-entry-get nil "CATEGORY"))
         ("youtube")))
@@ -205,7 +211,7 @@ Used to retrieve songs, playlists on android media player."
     search-query)))
 
 (defun org-music--get-random-songs (tags-match playlist-length)
-  "Get random TAGS-MATCH satisfying songs numbering PLAYLIST-LENGTH in ORG-MUSIC-FILE."
+  "Get PLAYLIST-LENGTH random songs satisfying TAGS-MATCH from ORG-MUSIC-FILE."
   (with-current-buffer (find-file-noselect org-music-file)
     (save-excursion
       (last
@@ -326,7 +332,8 @@ Used to retrieve songs, playlists on android media player."
                     (format "%s/music?type=mood" org-music-samvayati-root-url))))))
 
 (defun org-music-play-contextual-music (&optional continuous)
-  "Play a contextually relevant songs. If CONTINUOUS play infinite contextual playlist."
+  "Play a contextually relevant songs.
+If CONTINUOUS play infinite contextual playlist."
   (interactive)
   (let* ((moods (org-music--fetch-samvayati-moods))
          (play-mood (car (org-music--shuffle moods))))
@@ -366,7 +373,8 @@ Used to retrieve songs, playlists on android media player."
   (kill-buffer ".playlist.org"))
 
 (defun org-music-play-contextual-playlist ()
-  "Create contextually relevant playlist from org song headings. Share playlist with OS specific player."
+  "Create contextually relevant playlist from org song headings.
+Share playlist with OS specific player."
   (interactive)
   (org-music--create-m3u-playlist (org-music--get-contextual-songs 5) t)
   (org-music--share-playlist))
@@ -415,7 +423,8 @@ Share with emms on unixes and android music player via termux on android."
     (format "youtube-dl --no-mtime --get-id ytsearch:\"%s\"" (car song-entry)))))
 
 (defun org-music--android-share-youtube-song (song-id)
-  "Share constructed youtube-url based on SONG-ID via termux to play on android youtube player."
+  "Share constructed youtube-url based on SONG-ID via Termux.
+Allows playing song on Android youtube player."
   (shell-command-to-string (format "termux-open-url \"https://youtube.com/watch?v=%s\"" song-id)))
 
 (defun org-music--get-nextcloud-url (song-entry)
@@ -429,12 +438,13 @@ Share with emms on unixes and android music player via termux on android."
   "Download song satisfying QUERY from Youtube to FILE-LOCATION."
   (interactive)
   (let ((download-command
-         (format "youtube-dl --no-mtime -f %s --quiet ytsearch:%S -o %S" org-music-cache-song-format song-query file-location)))
+         (format "youtube-dl --no-mtime -f %s --quiet ytsearch:%S -o %S" org-music-cache-song-format query file-location)))
     (message "%s" download-command)
     (shell-command-to-string download-command)))
 
 (defun org-music--play-cached-song (song-name song-entry source enqueue)
-  "Cache SONG-ENTRY from SOURCE as SONG-NAME. Enqueue song if ENQUEUE true else play."
+  "Cache SONG-ENTRY from SOURCE as SONG-NAME.
+Enqueue song if ENQUEUE true else play."
   (interactive)
   (let ((uri-location (org-music--cache-song song-name song-entry source)))
     (message "location: %s, source: %s" uri-location source)
@@ -450,7 +460,8 @@ Share with emms on unixes and android music player via termux on android."
       (emms-play-file uri-location)))))
 
 (defun org-music--cache-song (song-name song-query source)
-  "If SONG-NAME not available in local, download from SOURCE using SONG-QUERY. Return local song URI based on OS."
+  "If SONG-NAME not available in local, download from SOURCE using SONG-QUERY.
+Return local song URI based on OS."
   (interactive)
   (let ((song-file-location
          (format "%s%s.%s" org-music-media-directory song-name org-music-cache-song-format)))
@@ -468,7 +479,8 @@ Share with emms on unixes and android music player via termux on android."
         song-file-location))))
 
 (defun org-music--trim-cache ()
-  "Trim media cache if larger than cache-size. Handle different file return ordering based on OS."
+  "Trim media cache if larger than cache-size.
+Handle different file return ordering based on OS."
   (interactive)
   (let ((sorted-files
           (reverse
@@ -538,26 +550,27 @@ Share with emms on unixes and android music player via termux on android."
             (define-key map (kbd "C-x p o") 'org-music-play-list)
             (define-key map (kbd "C-x p e") 'org-music-enqueue-list)
             (define-key map (kbd "C-x p s") 'org-music--toggle-mark-heading-as-song)
-            (define-key map (kbd "C-x p <SPC>") '(lambda () "play/pause" (interactive) (emms-pause)))
-            (define-key map (kbd "C-x p p") '(lambda () "play previous track in playlist" (interactive) (emms-previous)))
-            (define-key map (kbd "C-x p n") '(lambda () "play next track in playlist" (interactive) (emms-next)))
-            (define-key map (kbd "C-x p r") '(lambda () "play previous random track in playlist" (interactive) (org-music-play-random-song)))
-            (define-key map (kbd "C-x p R") '(lambda () "play next random track in playlist" (interactive) (org-music-play-random-songs)))
-            (define-key map (kbd "C-x p c") '(lambda () "play song based on context" (interactive) (org-music-play-contextual-music)))
-            (define-key map (kbd "C-x p C") '(lambda () "play contextual music continuously" (interactive) (org-music-play-contextual-music t)))
+            (define-key map (kbd "C-x p <SPC>") #'(lambda () "play/pause" (interactive) (emms-pause)))
+            (define-key map (kbd "C-x p p") #'(lambda () "play previous track in playlist" (interactive) (emms-previous)))
+            (define-key map (kbd "C-x p n") #'(lambda () "play next track in playlist" (interactive) (emms-next)))
+            (define-key map (kbd "C-x p r") #'(lambda () "play previous random track in playlist" (interactive) (org-music-play-random-song)))
+            (define-key map (kbd "C-x p R") #'(lambda () "play next random track in playlist" (interactive) (org-music-play-random-songs)))
+            (define-key map (kbd "C-x p c") #'(lambda () "play song based on context" (interactive) (org-music-play-contextual-music)))
+            (define-key map (kbd "C-x p C") #'(lambda () "play contextual music continuously" (interactive) (org-music-play-contextual-music t)))
             map)
 
   ;; define music speed commands
   (defun org-music--speed (keys)
-    "Use speed commands in org-music-mode if cursor at beginning of an org-heading line"
+    "Use speed commands in org-music-mode if cursor at beginning of org-heading"
     (when (and (member 'org-music-mode (org-music--active-minor-modes))
                (bolp) (looking-at org-outline-regexp))
-      (cdr (assoc keys
-                  '(("o" . (lambda () "play song at point" (org-music-play-song-at-point)))
-                    ("e" . (lambda () "enqueue song at point" (org-music-enqueue-song-at-point)))
-                    ("s" . (lambda () "play/pause" (message "toggle play/pause") (emms-pause)))
-                    ("d" . (lambda () "play next track in playlist" (emms-previous)))
-                    ("f" . (lambda () "play previous track in playlist" (emms-next))))))))
+      (cdr (assoc
+            keys
+            '(("o" . (lambda () "play song at point" (org-music-play-song-at-point)))
+              ("e" . (lambda () "enqueue song at point" (org-music-enqueue-song-at-point)))
+              ("s" . (lambda () "play/pause" (message "toggle play/pause") (emms-pause)))
+              ("d" . (lambda () "play next track in playlist" (emms-previous)))
+              ("f" . (lambda () "play previous track in playlist" (emms-next))))))))
 
     ;; add to org-speed-command-hook
   (add-hook 'org-speed-command-hook 'org-music--speed))
