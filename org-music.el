@@ -145,6 +145,7 @@ Used to retrieve songs, playlists on android media player."
     (insert state ": " log-time "\n")
     (forward-line -1)
     (org-indent-region (line-beginning-position) (line-end-position))
+    (save-buffer)
     (goto-char opos)))
 
 (defun org-music--get-search-query ()
