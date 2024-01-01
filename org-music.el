@@ -397,7 +397,9 @@ Stream if STREAM-P, Else Download and Play Cached."
 
 (defun org-music--write-playlist-to-file (m3u-playlist)
   "Write M3U-PLAYLIST to file."
-  (let ((playlist-file (format "%s%s" org-music-media-directory org-music-playlist-file)))
+  (let ((playlist-file (format "%s%s"
+                               (file-name-as-directory org-music-media-directory)
+                               org-music-playlist-file)))
     (write-region (format "#EXTM3U\n%s" m3u-playlist) nil playlist-file)))
 
 (defun org-music--share-playlist ()
@@ -405,7 +407,9 @@ Stream if STREAM-P, Else Download and Play Cached."
 Share with emms on unixes and android music player via termux on android."
   (if (equal org-music-operating-system "android")
       (shell-command-to-string (format "termux-open \"%s%s\"" org-music-android-media-directory org-music-playlist-file))
-    (emms-play-playlist (format "%s%s" (expand-file-name org-music-media-directory) org-music-playlist-file))))
+    (emms-play-playlist (format "%s%s"
+                                (expand-file-name (file-name-as-directory org-music-media-directory))
+                                org-music-playlist-file))))
 
 (defun org-music--get-youtube-url (search-query)
   "Retrieve URL of the top result for SEARCH-QUERY on Youtube."
@@ -458,7 +462,10 @@ Enqueue song if ENQUEUE true else play."
   "If SONG-NAME not available in local, download from SOURCE using SONG-QUERY.
 Return local song URI based on OS."
   (let ((song-file-location
-         (format "%s%s.%s" org-music-media-directory song-name org-music-cache-song-format)))
+         (format "%s%s.%s"
+                 (file-name-as-directory org-music-media-directory)
+                  song-name
+                  org-music-cache-song-format)))
     (message "cache location: %s, source: %s" song-file-location source)
     (if (equal source "nextcloud")
         (org-music--get-nextcloud-url (if (listp song-name) song-name (list song-name)))
@@ -479,7 +486,7 @@ Handle different file return ordering based on OS."
   (let ((sorted-files
           (reverse
           (sort
-           (directory-files (expand-file-name org-music-media-directory) t "m4a$")
+           (directory-files (expand-file-name (file-name-as-directory org-music-media-directory)) t "m4a$")
            'file-newer-than-file-p))))
     (message "trim music cache of: %s" (butlast sorted-files org-music-cache-size))
     (mapcar 'delete-file (butlast sorted-files org-music-cache-size))))
