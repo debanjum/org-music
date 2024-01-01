@@ -12,6 +12,26 @@
     [[./sample/play-org-music-demo.gif]]
 
 ** Setup
+*** Straight.el
+    - Add below snippet to your Emacs init.el
+      #+begin_src elisp
+        ;; Org-Music Mode
+        (use-package org-music
+          :straight (org-music :type git :host github :repo "debanjum/org-music")
+          :after (org emms)
+          :init (progn
+                  (setq
+                   org-music-file "~/Notes/Music.org"
+                   org-music-media-directory "~/Music/OrgMusic/"
+                   org-music-operating-system "linux")
+                  (add-hook
+                   'org-mode-hook
+                   (lambda()
+                     (if (equal buffer-file-name (expand-file-name org-music-file))
+                         (org-music-mode))))))
+      #+end_src
+
+*** Basic
    1. Install below dependencies
    2. Copy [[./org-music.el][org-music.el]] to your Emacs [[https://www.emacswiki.org/emacs/LoadPath][load-path]]
    3. Add below minimal snippet to your Emacs init.el
