@@ -57,7 +57,7 @@
 
 ** When was this tool actually created?
    It has been in non-continuous development for way longer than I'd care to admit (or remember).
-   It's been my primary music library since 2014 and primay music player since 2018.
+   It's been my primary music library since 2014 and primary music player since 2018.
 
    It started of as a soft-linked ghost replica of my then music library.
    I'd click the file, that'd call a shell script, that'd search on Duckduckgo for a Youtube url of the clicked filename, that VLC would then stream from Youtube!
