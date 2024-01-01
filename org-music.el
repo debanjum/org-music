@@ -125,7 +125,6 @@ Used to retrieve songs, playlists on android media player."
 
 (defun org-music--get-org-headings ()
   "Extract song headings from active/narrowed/sparse-tree region of org buffer."
-  (interactive)
   (if (use-region-p)
       (narrow-to-region (point) (mark)))
   (let ((headings
@@ -136,7 +135,6 @@ Used to retrieve songs, playlists on android media player."
 
 (defun org-music--log-song-state (state)
   "Add STATE: `org-current-effective-time` to song's LOGBOOK."
-  (interactive)
   (let ((opos (point))
         (log-spos (org-log-beginning t))
         (log-time (format-time-string
@@ -162,7 +160,6 @@ search query is in QUERY property values or headings of org entries."
 
 (defun org-music--search-song-at-point ()
   "Retrieve QUERY property value or heading of song at point."
-  (interactive)
   (cond ((org-entry-get nil "QUERY"))
         ((nth 4 (org-heading-components)))))
 
@@ -189,7 +186,6 @@ Defaults to Youtube."
 
 (defun org-music--get-media-url (search-query source)
   "Retrieve media url from SOURCE based on SEARCH-QUERY."
-  (interactive)
   (if (equal "nextcloud" source)
       (org-music--get-nextcloud-url search-query)
     (org-music--get-youtube-url search-query)))
@@ -319,7 +315,7 @@ Defaults to Youtube."
   LIST)
 
 (defun org-music--fetch-json (url)
-  "Fetch json from  URL."
+  "Fetch json from URL."
   (with-current-buffer (url-retrieve-synchronously url)
     (goto-char (1+ url-http-end-of-headers))
     (json-read)))
@@ -356,7 +352,6 @@ If CONTINUOUS play infinite contextual playlist."
 
 (defun org-music--get-contextual-songs (playlist-length)
   "Get contextually relevant songs numbering PLAYLIST-LENGTH."
-  (interactive)
   (let* ((moods (org-music--fetch-samvayati-moods))
          (tags-match (format "TYPE=\"song\"%s" (car (org-music--shuffle moods)))))
     (org-music--get-random-songs tags-match playlist-length)))
@@ -435,7 +430,7 @@ Allows playing song on Android youtube player."
    (shell-command-to-string
     (format "%s \"get_url\" \"%s\"" org-music-next-cloud-script (car song-entry)))))
 
-(defun org-music--get-song (query file-location)
+(defun org-music-get-song (query file-location)
   "Download song satisfying QUERY from Youtube to FILE-LOCATION."
   (interactive)
   (let ((download-command
@@ -446,7 +441,6 @@ Allows playing song on Android youtube player."
 (defun org-music--play-cached-song (song-name song-entry source enqueue)
   "Cache SONG-ENTRY from SOURCE as SONG-NAME.
 Enqueue song if ENQUEUE true else play."
-  (interactive)
   (let ((uri-location (org-music--cache-song song-name song-entry source)))
     (message "location: %s, source: %s" uri-location source)
     ;; update modification time of local file being played
@@ -463,7 +457,6 @@ Enqueue song if ENQUEUE true else play."
 (defun org-music--cache-song (song-name song-query source)
   "If SONG-NAME not available in local, download from SOURCE using SONG-QUERY.
 Return local song URI based on OS."
-  (interactive)
   (let ((song-file-location
          (format "%s%s.%s" org-music-media-directory song-name org-music-cache-song-format)))
     (message "cache location: %s, source: %s" song-file-location source)
@@ -472,14 +465,14 @@ Return local song URI based on OS."
        ;; if file doesn't exist, trim cache and download file
       (if (not (file-exists-p song-file-location))
           (progn
-            (org-music--trim-cache)
-            (org-music--get-song song-query song-file-location)))
+            (org-music-trim-cache)
+            (org-music-get-song song-query song-file-location)))
       ;; return song uri based on operating system
       (if (equal org-music-operating-system "android")
           (format "%s%s.%s" org-music-android-media-directory song-name org-music-cache-song-format)
         song-file-location))))
 
-(defun org-music--trim-cache ()
+(defun org-music-trim-cache ()
   "Trim media cache if larger than cache-size.
 Handle different file return ordering based on OS."
   (interactive)
@@ -493,7 +486,7 @@ Handle different file return ordering based on OS."
 
 ;; Org Music Library Metadata Enhancement Methods
 ;; ----------------------------------------------
-(defun org-music--toggle-mark-heading-as-song ()
+(defun org-music-toggle-mark-heading-as-song ()
   "Add property :TYPE: song to heading at point. Remove it, if already present."
   (interactive)
   (if (not (equal "song" (org-entry-get nil "TYPE")))
@@ -502,7 +495,6 @@ Handle different file return ordering based on OS."
 
 (defun org-music--append-outline-to-song-entries ()
   "Add outline parents of all visible song headings to their org entries."
-  (interactive)
   (while (not (org-entry-get nil "SEQ"))
     (org-next-visible-heading 1)
     (let ((outline (org-display-outline-path nil nil " " t)))
@@ -511,25 +503,11 @@ Handle different file return ordering based on OS."
 
 (defun org-music--append-outline-to-song-query-property ()
   "Add outline parents of all visible song headings to their query property."
-  (interactive)
   (while (not (org-entry-get nil "SEQ"))
     (org-next-visible-heading 1)
     (let ((outline (org-display-outline-path nil t " - " t)))
       (if (equal "song" (org-entry-get nil "TYPE"))
           (org-entry-put nil "QUERY" outline)))))
-
-(defun org-music--remove-colon-from-org-headings ()
-  "Remove colon from non song org headings."
-  (interactive)
-  (while (or (not (org-entry-get nil "SEQ"))
-             (outline-invisible-p))
-    (org-next-visible-heading 1)
-    (let ((outline (org-display-outline-path nil t " - " t)))
-      (if (not (equal "song" (org-entry-get nil "TYPE")))
-          (progn
-            (end-of-line)
-            (if (equal ":" (string (char-before)))
-                (delete-char -1)))))))
 
 (defun org-music--insert-outline-of-entry (outline)
   "Add OUTLINE parents of song heading at point to its org entry."
