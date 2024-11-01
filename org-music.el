@@ -96,6 +96,11 @@ Used to retrieve songs, playlists on android media player."
   :group 'org-music
   :type 'string)
 
+(defcustom org-music-cache-download-song-format "mp4"
+  "Format to download songs in before audio extraction. See youtube-dl for available formats."
+  :group 'org-music
+  :type 'string)
+
 (defcustom org-music-samvayati-root-url "http://localhost:5000"
   "Location of samvayati, the contextual awareness server."
   :group 'org-music
@@ -437,8 +442,13 @@ Allows playing song on Android youtube player."
 (defun org-music-get-song (query file-location)
   "Download song satisfying QUERY from Youtube to FILE-LOCATION."
   (interactive)
-  (let ((download-command
-         (format "youtube-dl --no-mtime -f %s --quiet ytsearch:%S -o %S" org-music-cache-song-format query file-location)))
+  (let* ((download-file-location
+          (replace-regexp-in-string
+           (format ".%s$" org-music-cache-song-format)
+           (format ".%s" org-music-cache-download-song-format)
+           file-location))
+         (download-command
+          (format "youtube-dl --no-mtime -f %s -x --audio-format %s --quiet ytsearch:%S -o %S" org-music-cache-download-song-format org-music-cache-song-format query download-file-location)))
     (message "%s" download-command)
     (shell-command-to-string download-command)))
 
