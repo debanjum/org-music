@@ -128,10 +128,10 @@ Used to retrieve songs, playlists on android media player."
   (if (use-region-p)
       (narrow-to-region (point) (mark)))
   (let ((headings
-        (org-element-map (org-element-parse-buffer "object" t) 'headline 'org-music--get-song-properties-of-entry)))
-        (message "%s" headings)
-        (widen)
-        headings))
+         (org-element-map (org-element-parse-buffer "object" t) 'headline 'org-music--get-song-properties-of-entry)))
+    (message "%s" headings)
+    (widen)
+    headings))
 
 (defun org-music--log-song-state (state)
   "Add STATE: `org-current-effective-time` to song's LOGBOOK."
@@ -294,7 +294,7 @@ Defaults to Youtube."
   "Play songs in active/narrowed/sparse-tree region of org buffer."
   (interactive)
   (let ((songs (org-music--get-org-headings)))
-    (apply #'org-music--play-cached-song (pop songs))
+    (apply #'org-music--play-cached-song (append (pop songs) (list nil)))
     (org-music-enqueue-list songs)))
 
 (defun org-music--active-minor-modes ()
