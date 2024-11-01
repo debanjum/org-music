@@ -1,3 +1,4 @@
+;;; -*- lexical-binding: t -*-
 ;;; org-music.el --- Store and play music from a simple org-mode file
 
 ;; Copyright (C) 2017-2023 Debanjum Singh Solanky
@@ -298,9 +299,12 @@ Defaults to Youtube."
 (defun org-music-play-list ()
   "Play songs in active/narrowed/sparse-tree region of org buffer."
   (interactive)
-  (let ((songs (org-music--get-org-headings)))
-    (apply #'org-music--play-cached-song (append (pop songs) (list nil)))
-    (org-music-enqueue-list songs)))
+  (let* ((songs (org-music--get-org-headings))
+         ;; play the first song
+         (first-song (pop songs))
+         ;; enqueue rest of the songs using callback once the first song is playing
+         (callback (lambda () (org-music-enqueue-list songs))))
+    (apply #'org-music--play-cached-song (append first-song (list nil callback)))))
 
 (defun org-music--active-minor-modes ()
   "List active minor modes in current buffer."
@@ -439,38 +443,74 @@ Allows playing song on Android youtube player."
    (shell-command-to-string
     (format "%s \"get_url\" \"%s\"" org-music-next-cloud-script (car song-entry)))))
 
-(defun org-music-get-song (query file-location)
-  "Download song satisfying QUERY from Youtube to FILE-LOCATION."
+(defun org-music-get-song (query file-location &optional callback)
+  "Download song satisfying QUERY from Youtube to FILE-LOCATION asynchronously.
+Optional CALLBACK function is called with (process, event) when download completes."
   (interactive)
   (let* ((download-file-location
           (replace-regexp-in-string
            (format ".%s$" org-music-cache-song-format)
            (format ".%s" org-music-cache-download-song-format)
            file-location))
-         (download-command
-          (format "youtube-dl --no-mtime -f %s -x --audio-format %s --quiet ytsearch:%S -o %S" org-music-cache-download-song-format org-music-cache-song-format query download-file-location)))
-    (message "%s" download-command)
-    (shell-command-to-string download-command)))
+         (process-name (format "youtube-dl-%s" (secure-hash 'sha1 query)))
+         (process-buffer (format "*%s*" process-name))
+         (program "youtube-dl")
+         (program-args
+          (list "--no-mtime"          ; don't modify file timestamps
+                "-f" org-music-cache-download-song-format
+                "-x"                  ; extract audio
+                "--audio-format" org-music-cache-song-format
+                "--quiet"            ; reduce output verbosity
+                (format "ytsearch:%s" query)
+                "-o" download-file-location))
+         ;; Create sentinel function that closes over needed variables
+         (sentinel-fn
+          (lambda (process event)
+            (let ((exit-status (process-exit-status process)))
+              (if (= exit-status 0)
+                  (progn
+                    (message "Successfully downloaded: %s" query)
+                    (when callback
+                      (funcall callback process event)))
+                (message "Failed to download: %s (exit code: %d)" query exit-status))
+              ;; Cleanup process buffer
+              (when (get-buffer process-buffer)
+                (kill-buffer process-buffer))))))
 
-(defun org-music--play-cached-song (song-name song-entry source enqueue)
+    ;; Create process buffer
+    (with-current-buffer (get-buffer-create process-buffer)
+      (erase-buffer))
+
+    ;; Start async process and set sentinel
+    (let ((proc (apply #'start-process
+                      process-name
+                      process-buffer
+                      program
+                      program-args)))
+      (set-process-sentinel proc sentinel-fn)
+      proc)))
+
+(defun org-music--play-cached-song (song-name song-entry source enqueue &optional callback)
   "Cache SONG-ENTRY from SOURCE as SONG-NAME.
 Enqueue song if ENQUEUE true else play."
-  (let ((uri-location (org-music--cache-song song-name song-entry source)))
-    (message "location: %s, source: %s" uri-location source)
-    ;; update modification time of local file being played
-    ;; ensures cache trim least recently modified file
-    (if (not (equal source "nextcloud")) (set-file-times uri-location))
-    (if (equal source "nextcloud")
-        (if enqueue
-            (emms-add-url uri-location)
-          (emms-play-url uri-location))
-      (if enqueue
-          (emms-add-file uri-location)
-      (emms-play-file uri-location)))))
+  (let* ((playback-fn
+          (lambda (uri)
+            (if (equal source "nextcloud")
+                (if enqueue
+                    (emms-add-url uri)
+                  (emms-play-url uri))
+              (if enqueue
+                  (emms-add-file uri)
+                (emms-play-file uri)))
+            (when callback
+              (funcall callback)))))
+    ;; Cache song with playback function as callback
+    (org-music--cache-song song-name song-entry source playback-fn)))
 
-(defun org-music--cache-song (song-name song-query source)
+(defun org-music--cache-song (song-name song-query source callback)
   "If SONG-NAME not available in local, download from SOURCE using SONG-QUERY.
-Return local song URI based on OS."
+CALLBACK is called with the song URI when ready. For local files, this happens
+after download completes. For nextcloud, this happens immediately."
   (let ((song-file-location
          (format "%s%s.%s"
                  (file-name-as-directory org-music-media-directory)
@@ -478,16 +518,41 @@ Return local song URI based on OS."
                   org-music-cache-song-format)))
     (message "cache location: %s, source: %s" song-file-location source)
     (if (equal source "nextcloud")
-        (org-music--get-nextcloud-url (if (listp song-name) song-name (list song-name)))
-       ;; if file doesn't exist, trim cache and download file
-      (if (not (file-exists-p song-file-location))
+        (let ((uri (org-music--get-nextcloud-url
+                   (if (listp song-name) song-name (list song-name)))))
+          ;; For nextcloud, call callback immediately with URI
+          (when callback (funcall callback uri))
+          uri)
+      ;; For local files, check if download needed
+      (if (file-exists-p song-file-location)
+          ;; If file exists, call callback immediately
           (progn
-            (org-music-trim-cache)
-            (org-music-get-song song-query song-file-location)))
-      ;; return song uri based on operating system
-      (if (equal org-music-operating-system "android")
-          (format "%s%s.%s" org-music-android-media-directory song-name org-music-cache-song-format)
-        song-file-location))))
+            (set-file-times song-file-location)  ; update access time
+            (when callback
+              (funcall callback
+                      (if (equal org-music-operating-system "android")
+                          (format "%s%s.%s"
+                                  org-music-android-media-directory
+                                  song-name
+                                  org-music-cache-song-format)
+                        song-file-location)))
+            song-file-location)
+        ;; If file doesn't exist, download and setup callback
+        (progn
+          (org-music-trim-cache)
+          (org-music-get-song
+           song-query
+           song-file-location
+           (lambda (_process _event)
+             (message "Download complete: %s" song-name)
+             (when callback
+               (funcall callback
+                       (if (equal org-music-operating-system "android")
+                           (format "%s%s.%s"
+                                   org-music-android-media-directory
+                                   song-name
+                                   org-music-cache-song-format)
+                         song-file-location))))))))))
 
 (defun org-music-trim-cache ()
   "Trim media cache if larger than cache-size.
