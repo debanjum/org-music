@@ -92,6 +92,11 @@ Used to retrieve songs, playlists on android media player."
   :group 'org-music
   :type 'integer)
 
+(defcustom org-music-youtube-downloader "youtube-dl"
+  "Youtube downloader to use. Needs to be compatible with youtube-dl CLI flags."
+  :group 'org-music
+  :type 'string)
+
 (defcustom org-music-cache-song-format "m4a"
   "Format to store songs in cache. See youtube-dl for available formats."
   :group 'org-music
@@ -429,7 +434,7 @@ Share with emms on unixes and android music player via termux on android."
   (replace-regexp-in-string
    "\n$" ""
    (shell-command-to-string
-    (format "youtube-dl --no-mtime --get-id ytsearch:\"%s\"" (car song-entry)))))
+    (format "%s --no-mtime --get-id ytsearch:\"%s\"" org-music-youtube-downloader (car song-entry)))))
 
 (defun org-music--android-share-youtube-song (song-id)
   "Share constructed youtube-url based on SONG-ID via Termux.
@@ -452,9 +457,8 @@ Optional CALLBACK function is called with (process, event) when download complet
            (format ".%s$" org-music-cache-song-format)
            (format ".%s" org-music-cache-download-song-format)
            file-location))
-         (process-name (format "youtube-dl-%s" (secure-hash 'sha1 query)))
+         (process-name (format "%s-%s" org-music-youtube-downloader (secure-hash 'sha1 query)))
          (process-buffer (format "*%s*" process-name))
-         (program "youtube-dl")
          (program-args
           (list "--no-mtime"          ; don't modify file timestamps
                 "-f" org-music-cache-download-song-format
@@ -485,7 +489,7 @@ Optional CALLBACK function is called with (process, event) when download complet
     (let ((proc (apply #'start-process
                       process-name
                       process-buffer
-                      program
+                      org-music-youtube-downloader
                       program-args)))
       (set-process-sentinel proc sentinel-fn)
       proc)))
