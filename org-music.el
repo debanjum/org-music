@@ -282,6 +282,7 @@ Defaults to Youtube."
       (message org-music--not-on-song-type-heading))))
 
 (defun org-music-play-song-at-point ()
+  (interactive)
   "Open song at point."
   (let ((song-name (format "%s" (nth 4 (org-heading-components))))
         (query (org-music--search-song-at-point))
@@ -448,10 +449,9 @@ Allows playing song on Android youtube player."
    (shell-command-to-string
     (format "%s \"get_url\" \"%s\"" org-music-next-cloud-script (car song-entry)))))
 
-(defun org-music-get-song (query file-location &optional callback)
+(defun org-music--get-song (query file-location &optional callback)
   "Download song satisfying QUERY from Youtube to FILE-LOCATION asynchronously.
 Optional CALLBACK function is called with (process, event) when download completes."
-  (interactive)
   (let* ((download-file-location
           (replace-regexp-in-string
            (format ".%s$" org-music-cache-song-format)
@@ -544,7 +544,7 @@ after download completes. For nextcloud, this happens immediately."
         ;; If file doesn't exist, download and setup callback
         (progn
           (org-music-trim-cache)
-          (org-music-get-song
+          (org-music--get-song
            song-query
            song-file-location
            (lambda (_process _event)
