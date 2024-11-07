@@ -270,7 +270,8 @@ Defaults to Youtube."
     search-query)))
 
 (defun org-music-enqueue-song-at-point ()
-  "Enqueue song at point."
+  "Enqueue song at point. Download song if necessary."
+  (interactive)
   (let ((song-name (format "%s" (nth 4 (org-heading-components))))
         (query (org-music--search-song-at-point))
         (source (org-music--get-song-source)))
@@ -282,8 +283,8 @@ Defaults to Youtube."
       (message org-music--not-on-song-type-heading))))
 
 (defun org-music-play-song-at-point ()
+  "Play song at point. Download song if necessary."
   (interactive)
-  "Open song at point."
   (let ((song-name (format "%s" (nth 4 (org-heading-components))))
         (query (org-music--search-song-at-point))
         (source (org-music--get-song-source)))
