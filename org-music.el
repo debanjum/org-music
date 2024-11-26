@@ -151,7 +151,8 @@ Used to retrieve songs, playlists on android media player."
         (log-time (format-time-string
                    (org-time-stamp-format 'long 'inactive)(org-current-effective-time))))
     (goto-char log-spos)
-    (insert state ": " log-time "\n")
+    (goto-char (line-end-position))
+    (insert "\n" state ": " log-time)
     (forward-line -1)
     (org-indent-region (line-beginning-position) (line-end-position))
     (save-buffer)
