@@ -523,6 +523,25 @@ Handle different file return ordering based on OS."
     (org-cycle)
     (org-previous-visible-heading 1)))
 
+(defun org-music-jump-to-current-song ()
+  "Jump to the Org headline of the currently playing song in Emms."
+  (interactive)
+  (let ((music-file org-music-file))
+    (if (file-exists-p music-file)
+        (progn
+          (find-file music-file)
+          (let* ((song-path (emms-track-name
+                             (emms-playlist-current-selected-track)))
+                 (outline-name (when (and song-path
+                                          (string-match ".*/\\(.*\\)\\.m4a" song-path))
+                                 (match-string 1 song-path)))
+                 (outline-marker (and outline-name
+                                      (org-find-exact-headline-in-buffer outline-name))))
+            (if outline-marker
+                (goto-char outline-marker)
+              (message "Song '%s' not found in Org file." outline-name))))
+      (message "Music file '%s' does not exist." music-file))))
+
 ;;;###autoload
 ;; Configure Org-Music Mode
 (define-minor-mode org-music-mode
