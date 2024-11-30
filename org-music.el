@@ -178,18 +178,6 @@ Defaults to Youtube."
 
 ;; Music Player Controls
 ;; ---------------------
-
-;; Control MPV on Linux via Shell
-;; ------------------------------
-(defun org-music--mpv-start ()
-  "Start mpv player."
-  (shell-command
-   (format "mpv --idle --input-ipc-server=/tmp/mpvsocket --ytdl-format=bestaudio &")))
-
-(defun org-music--mpv-running-p ()
-  "Check if mpv is running."
-  (member "mpv" (split-string (shell-command-to-string "playerctl -l"))))
-
 (defun org-music--get-media-url (search-query source)
   "Retrieve media url from SOURCE based on SEARCH-QUERY."
   (if (equal "nextcloud" source)
@@ -203,15 +191,6 @@ Defaults to Youtube."
 (defun org-music--emms-play (search-query &optional source)
   "Play media retrieved from SOURCE based on SEARCH-QUERY."
   (emms-play-url (org-music--get-media-url search-query source)))
-
-(defun org-music--mpv-enqueue (search-query)
-  "Enqueue in mpv the top result for SEARCH-QUERY on Youtube."
-  (when (not (org-music--mpv-running-p))
-      (org-music--mpv-start))
-  (shell-command-to-string
-   (format
-    "echo '{ \"command\": [\"loadfile\", \"ytdl://ytsearch:\\\"%s\\\"\", \"append-play\"] }' | socat - /tmp/mpvsocket"
-    search-query)))
 
 (defun org-music--get-random-songs (tags-match playlist-length)
   "Get PLAYLIST-LENGTH random songs satisfying TAGS-MATCH from ORG-MUSIC-FILE."
@@ -254,15 +233,6 @@ Defaults to Youtube."
   (if (use-region-p)
       (let ((regionp (buffer-substring-no-properties start end)))
         (emms-add-url (org-music--get-media-url regionp "youtube")))))
-
-(defun org-music--mpv-play (search-query)
-  "Enqueue in mpv the top result for SEARCH-QUERY on Youtube."
-  (when (not (org-music--mpv-running-p))
-      (org-music--mpv-start))
-  (shell-command-to-string
-   (format
-    "echo '{ \"command\": [\"loadfile\", \"ytdl://ytsearch:\\\"%s\\\"\", \"append\"] }' | socat - /tmp/mpvsocket"
-    search-query)))
 
 (defun org-music-enqueue-song-at-point ()
   "Enqueue song at point. Download song if necessary."
