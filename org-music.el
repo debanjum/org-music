@@ -107,11 +107,6 @@ Used to retrieve songs, playlists on android media player."
   :group 'org-music
   :type 'string)
 
-(defcustom org-music-samvayati-root-url "http://localhost:5000"
-  "Location of samvayati, the contextual awareness server."
-  :group 'org-music
-  :type 'string)
-
 (defvar org-music-last-playlist-filter nil
   "Last org filter used to create playlist.")
 
@@ -330,48 +325,6 @@ Defaults to Youtube."
                 (org-music--swap LIST i j)))
   LIST)
 
-(defun org-music--fetch-json (url)
-  "Fetch json from URL."
-  (with-current-buffer (url-retrieve-synchronously url)
-    (goto-char (1+ url-http-end-of-headers))
-    (json-read)))
-
-(defun org-music--fetch-samvayati-moods ()
-  "Fetch contextual moods from samvayati."
-  (let* ((json-object-type 'plist)
-         (json-array-type 'list)
-         (json-key-type 'string))
-    (nth 0 (cdadar (org-music--fetch-json
-                    (format "%s/music?type=mood" org-music-samvayati-root-url))))))
-
-(defun org-music-play-contextual-music (&optional continuous)
-  "Play a contextually relevant songs.
-If CONTINUOUS play infinite contextual playlist."
-  (interactive)
-  (let* ((moods (org-music--fetch-samvayati-moods))
-         (play-mood (car (org-music--shuffle moods))))
-    (message "Playing: %s of Moods: %s" play-mood moods)
-    (if continuous
-        (org-music-play-random-songs play-mood)
-      (org-music-play-random-song play-mood))))
-
-(defun org-music-contextual-playlist (playlist-length)
-  "Create, play a contextually relevant playlist of PLAYLIST-LENGTH."
-  (interactive)
-  (let* ((moods (org-music--fetch-samvayati-moods))
-         (play-mood (car (org-music--shuffle moods))))
-    (org-music-play-random-song play-mood)
-    (cl-loop for i in (number-sequence 1 (1- playlist-length))
-             do (let ((play-mood (car (org-music--shuffle moods))))
-                  (message "Playing: %s of Moods: %s" play-mood moods)
-                  (org-music-play-random-song play-mood t)))))
-
-(defun org-music--get-contextual-songs (playlist-length)
-  "Get contextually relevant songs numbering PLAYLIST-LENGTH."
-  (let* ((moods (org-music--fetch-samvayati-moods))
-         (tags-match (format "TYPE=\"song\"%s" (car (org-music--shuffle moods)))))
-    (org-music--get-random-songs tags-match playlist-length)))
-
 ;; Control Music Player on Android via Termux
 ;; ------------------------------------------
 (defun org-music-play-agenda-on-android (search-string)
@@ -383,13 +336,6 @@ If CONTINUOUS play infinite contextual playlist."
   ;; get song-name from org playlist's headings, format it to enqueue and play in mpsyt, trigger mpsyt
   (org-music-play-playlist)
   (kill-buffer ".playlist.org"))
-
-(defun org-music-play-contextual-playlist ()
-  "Create contextually relevant playlist from org song headings.
-Share playlist with OS specific player."
-  (interactive)
-  (org-music--create-m3u-playlist (org-music--get-contextual-songs 5) t)
-  (org-music--share-playlist))
 
 (defun org-music-play-playlist ()
   "Create playlist from org song headings. Share playlist with OS specific player."
@@ -621,8 +567,6 @@ Handle different file return ordering based on OS."
             (define-key map (kbd "C-x p n") #'(lambda () "play next track in playlist" (interactive) (emms-next)))
             (define-key map (kbd "C-x p r") #'(lambda () "play previous random track in playlist" (interactive) (org-music-play-random-song)))
             (define-key map (kbd "C-x p R") #'(lambda () "play next random track in playlist" (interactive) (org-music-play-random-songs)))
-            (define-key map (kbd "C-x p c") #'(lambda () "play song based on context" (interactive) (org-music-play-contextual-music)))
-            (define-key map (kbd "C-x p C") #'(lambda () "play contextual music continuously" (interactive) (org-music-play-contextual-music t)))
             map)
 
   ;; define music speed commands
