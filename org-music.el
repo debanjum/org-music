@@ -393,7 +393,10 @@ Optional CALLBACK function is called with (process, event) when download complet
                     (message "Successfully downloaded: %s" query)
                     (when callback
                       (funcall callback process event)))
-                (message "Failed to download: %s (exit code: %d)" query exit-status))
+                (message "Failed to download: %s\nwith command: %s %s"
+                         query
+                         org-music-youtube-downloader
+                         (string-join program-args " ")))
               ;; Cleanup process buffer
               (when (get-buffer process-buffer)
                 (kill-buffer process-buffer))))))
